@@ -7,6 +7,8 @@ MAIN_FONT = ("Arial", 12)
 VERY_LARGE_FONT = ("Arial bold", 18)
 UNDERLINED_FONT = ("Arial underline", 8)
 
+print("Hello World")
+
 class SamsTournamentsApp(tk.Tk):
     
     def __init__(self, *args, **kwargs):
