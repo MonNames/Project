@@ -1,12 +1,18 @@
 import tkinter as tk
 from tkinter import messagebox
 from PIL import ImageTk, Image
+import db
+import sqlite3 as sql
 
 MAIN_FONT = ("Arial", 12)
 MAIN_FONT_BOLD = ("Arial bold", 12)
 LARGE_FONT = ("Arial", 18)
 VERY_LARGE_FONT = ("Arial bold", 25)
 UNDERLINED_FONT = ("Arial underline", 8)
+
+connection = sql.connect("database.db")
+cursor = connection.cursor()
+db.createTables(cursor)
 
 class SamsTournamentsApp(tk.Tk):
     
@@ -27,7 +33,7 @@ class SamsTournamentsApp(tk.Tk):
         self.frames = {}
 
         # Create instances of LoginPage and SignupPage
-        for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPage, ScoringCalculatorPage, FAQandRulesPage, CreateAnAdminPage):
+        for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPage, ScoringCalculatorPage, FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage):
             frame = i(container, self)
             self.frames[i] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -422,7 +428,8 @@ class DashboardPage(tk.Frame):
                                             command=lambda: ScoringButtonCallBack())
         ScoringCalculatorButton.pack(pady=35)
 
-        CreateATournamentButton = tk.Button(LeftFrame, text="Create a Tournament", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT)
+        CreateATournamentButton = tk.Button(LeftFrame, text="Create a Tournament", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
+                                            command = lambda: controller.show_frame(CreateATournamentPage))
         CreateATournamentButton.pack(pady=35)
 
         FAQandRulesButton = tk.Button(LeftFrame, text="FAQ & Rules", bg="#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT,
@@ -724,6 +731,52 @@ class CreateAnAdminPage(tk.Frame):
         CreateAdminButton.pack(pady=5)
         BackButton = tk.Button(self, text="Back", bg="#E3E2DF", width=10, height=1, command=BackToDashboard)
         BackButton.pack(pady=5)
+
+class CreateATournamentPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        def CreateTournament(TournamentName, TournamentDate, TournamentTime, TournamentDescription):
+            db.insertToTournamentsTable(connection, cursor, [TournamentName, TournamentDate, TournamentTime, TournamentDescription])
+            messagebox.showinfo("Tournament", "You have created a tournament successfully!")
+            TournamentNameEntry.delete(0, "end")
+            TournamentDateEntry.delete(0, "end")
+            TournamentTimeEntry.delete(0, "end")
+            TournamentDescriptionEntry.delete(0, "end")
+
+        # Create StringVars for User Entry
+        TournamentName = tk.StringVar()
+        TournamentDate = tk.StringVar()
+        TournamentTime = tk.StringVar()
+        TournamentDescription = tk.StringVar()
+
+        MainLabel = tk.Label(self, text="Create a Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel.pack(pady=20)
+        
+        TournamentNameLabel = tk.Label(self, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentNameLabel.pack(padx=10)
+        TournamentNameEntry = tk.Entry(self, width=30, textvariable=TournamentName)
+        TournamentNameEntry.pack(padx=10, pady=10)
+
+        TournamentDateLabel = tk.Label(self, text="Tournament Date", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentDateLabel.pack(padx=10)
+        TournamentDateEntry = tk.Entry(self, width=30, textvariable=TournamentDate)
+        TournamentDateEntry.pack(padx=10, pady=10)
+
+        TournamentTimeLabel = tk.Label(self, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentTimeLabel.pack(padx=10)
+        TournamentTimeEntry = tk.Entry(self, width=30, textvariable=TournamentTime)
+        TournamentTimeEntry.pack(padx=10, pady=10)
+
+        TournamentDescriptionLabel = tk.Label(self, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentDescriptionLabel.pack(padx=10)
+        TournamentDescriptionEntry = tk.Entry(self, width=30, textvariable=TournamentDescription)
+        TournamentDescriptionEntry.pack(padx=10, pady=10)
+
+        CreateTournamentButton = tk.Button(self, text="Create Tournament", bg="#E3E2DF", width=15, height=2, 
+                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDate.get(), TournamentTime.get(), TournamentDescription.get()))
+        CreateTournamentButton.pack(pady=5)
     
 
 # Create an instance of the SamsTournamentsApp class and start the application
