@@ -4,8 +4,9 @@ import sqlite3 as sql
 def createtbl_Accounts(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Accounts(
         UserID INTEGER PRIMARY KEY,
-        Username VARCHAR(20) NOT NULL,
-        Password VARCHAR(20) NOT NULL
+        Username VARCHAR(30) NOT NULL,
+        Password VARCHAR(30) NOT NULL,
+        Role VARCHAR(20) NOT NULL
         );'''
     cursor.execute(sql)
 
@@ -13,11 +14,11 @@ def createtbl_Accounts(cursor: sql.Cursor):
 def createtbl_Administrators(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Administrators(
         AdminID INTEGER PRIMARY KEY,
-        AdminDiscName VARCHAR(20) NOT NULL,
+        AdminDiscName VARCHAR(30) NOT NULL,
         AdminFirstName VARCHAR(20) NOT NULL,
         AdminSurname VARCHAR(20) NOT NULL,
         AdminDOB DATE NOT NULL,
-        AdminEmail VARCHAR(20) NOT NULL,
+        AdminEmail VARCHAR(40) NOT NULL,
         UserID INTEGER NOT NULL,
         FOREIGN KEY (UserID) REFERENCES tbl_Accounts(UserID)
         );'''
@@ -72,7 +73,7 @@ def createTables(cursor: sql.Cursor):
 
 # Create a function that inserts data into the tbl_Accounts table
 def insertToAccountsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Accounts(UserID, Username, Password) VALUES(?, ?, ?)"
+    sql = f"INSERT INTO tbl_Accounts(UserID, Username, Password, Role) VALUES(?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -99,4 +100,17 @@ def insertToTournamentsTable(connection, cursor: sql.Cursor, data: list):
     cursor.execute(sql, data)
     connection.commit()
 
-conn = sql.connect("database.db")
+# Create a function that gets all the rows from a table
+def getAllRows(cursor: sql.Cursor, table: str):
+    sql = f"SELECT * FROM {table}"
+    cursor.execute(sql)
+    return cursor.fetchall()
+
+# Create a function that gets specific rows from a table based on a condition
+def getSpecificRows(cursor: sql.Cursor, table, condition):
+    sql = f"SELECT * FROM {table} WHERE {condition}"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+connection = sql.connect("database.db")
+cursor = connection.cursor()
