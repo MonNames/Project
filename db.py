@@ -17,8 +17,8 @@ def createtbl_Administrators(cursor: sql.Cursor):
         AdminDiscName VARCHAR(30) NOT NULL,
         AdminFirstName VARCHAR(20) NOT NULL,
         AdminSurname VARCHAR(20) NOT NULL,
-        AdminDOB DATE NOT NULL,
-        AdminEmail VARCHAR(40) NOT NULL,
+        AdminDOB VARCHAR(20) NOT NULL,
+        AdminEmail VARCHAR(50) NOT NULL,
         UserID INTEGER NOT NULL,
         FOREIGN KEY (UserID) REFERENCES tbl_Accounts(UserID)
         );'''
@@ -73,13 +73,14 @@ def createTables(cursor: sql.Cursor):
 
 # Create a function that inserts data into the tbl_Accounts table
 def insertToAccountsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Accounts(UserID, Username, Password, Role) VALUES(?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Accounts(Username, Password, Role) VALUES(?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
 # Create a function that inserts data into the tbl_Administrators table
 def insertToAdministratorsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Administrators( AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail) VALUES(?, ?, ?, ?, ?, ?)"
+    print(data)
+    sql = f"INSERT INTO tbl_Administrators(AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail) VALUES(?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 

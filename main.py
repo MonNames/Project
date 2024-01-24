@@ -36,15 +36,15 @@ class SamsTournamentsApp(tk.Tk):
         self.frames = {}
 
         # Create instances of LoginPage and SignupPage
-        for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPageParticipant, DashboardPageAdmin, 
-                  ScoringCalculatorPage, FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage,
-                  RegisterToTournamentPage):
+        for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPage, ScoringCalculatorPage, 
+                  FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage, RegisterToTournamentPage, 
+                  UnregisterFromTournamentPage):
             frame = i(container, self)
             self.frames[i] = frame
             frame.grid(row=0, column=0, sticky="nsew")
 
         # Show the LoginPage by default
-        self.show_frame(LoginPage)
+        self.show_frame(DashboardPage)
 
     def show_frame(self, cont):
         # Raise the specified frame to the top
@@ -84,7 +84,7 @@ class LoginPage(tk.Frame):
                     messagebox.showerror("Error", "Please enter a valid password.")
                 else:
                     messagebox.showinfo("Success", "You have logged in successfully!")
-                    controller.show_frame(DashboardPageParticipant)
+                    controller.show_frame(DashboardPage)
 
                     
         tk.Frame.__init__(self, parent)
@@ -149,7 +149,7 @@ class LoginPage(tk.Frame):
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
         ParticipantViewButton = tk.Button(RightFrame, text="Continue as Guest", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
-                                          command = lambda: controller.show_frame(DashboardPageParticipant))
+                                          command = lambda: controller.show_frame(DashboardPage))
         ParticipantViewButton.pack(pady=35)
         ForgotMyPasswordButton = tk.Button(RightFrame, text="Forgot my password", bg = "#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT,
                                            command=lambda: self.ButtonCallBack(controller, ForgotPasswordPage))
@@ -157,10 +157,6 @@ class LoginPage(tk.Frame):
         GoToSignUpButton = tk.Button(RightFrame, text="Sign Up", bg = "#E3AFBC", font = MAIN_FONT, width=45, height=4,
                                      command=lambda: controller.show_frame(SignupPage))
         GoToSignUpButton.pack(pady=35)
-
-        AdminViewButton = tk.Button(RightFrame, text="Admin View", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
-                                    command=lambda: controller.show_frame(DashboardPageAdmin))
-        AdminViewButton.pack(pady=35)
 
 
     # Creating an intermediary function to do two things at once on one button press
@@ -311,15 +307,15 @@ class SignupPage(tk.Frame):
         MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        EmailLabel = tk.Label(LeftFrame, text = "Email", bg="#E3E2DF", font=MAIN_FONT)
+        EmailLabel = tk.Label(LeftFrame, text = "Email", bg="#E3E2DF", font=LARGE_FONT)
         EmailLabel.pack(padx=10)
-        EmailEntry = tk.Entry(LeftFrame, width=30, textvariable = Email)
-        EmailEntry.pack(padx=10, pady=10)
+        EmailEntry = tk.Entry(LeftFrame, width=40, textvariable = Email)
+        EmailEntry.pack(padx=10, pady=20)
 
-        UsernameLabel = tk.Label(LeftFrame, text="Username", bg = "#E3E2DF", font=MAIN_FONT)
+        UsernameLabel = tk.Label(LeftFrame, text="Username", bg = "#E3E2DF", font=LARGE_FONT)
         UsernameLabel.pack(padx=10)
-        UsernameEntry = tk.Entry(LeftFrame, width=30, textvariable = Username)
-        UsernameEntry.pack(padx=10, pady=10)
+        UsernameEntry = tk.Entry(LeftFrame, width=40, textvariable = Username)
+        UsernameEntry.pack(padx=10, pady=20)
 
         # Create values to be used in the drop down menu
 
@@ -327,20 +323,21 @@ class SignupPage(tk.Frame):
         GenderVar = tk.StringVar()
         GenderVar.set("Please Select")
 
-        GenderLabel = tk.Label(LeftFrame, text="Gender", bg = "#E3E2DF", font=MAIN_FONT)
+        GenderLabel = tk.Label(LeftFrame, text="Gender", bg = "#E3E2DF", font=LARGE_FONT)
         GenderLabel.pack(padx=10)
         GenderEntry = tk.OptionMenu(LeftFrame, GenderVar, *Gender)
-        GenderEntry.pack(padx=10, pady=10)
+        GenderEntry.pack(padx=10, pady=20)
+        GenderEntry.config(width=20, height=1, font = MAIN_FONT)
 
-        PasswordLabel = tk.Label(LeftFrame, text="Password", bg = "#E3E2DF", font=MAIN_FONT)
+        PasswordLabel = tk.Label(LeftFrame, text="Password", bg = "#E3E2DF", font=LARGE_FONT)
         PasswordLabel.pack(padx=10)
-        PasswordEntry = tk.Entry(LeftFrame, width=30, textvariable = Password, show = "*")
-        PasswordEntry.pack(padx=10, pady=10)
+        PasswordEntry = tk.Entry(LeftFrame, width=40, textvariable = Password, show = "*")
+        PasswordEntry.pack(padx=10, pady=20)
 
-        PasswordConfirmLabel = tk.Label(LeftFrame, text="Confirm Password", bg = "#E3E2DF", font=MAIN_FONT)
+        PasswordConfirmLabel = tk.Label(LeftFrame, text="Confirm Password", bg = "#E3E2DF", font=LARGE_FONT)
         PasswordConfirmLabel.pack(padx=10)
-        PasswordConfirmEntry = tk.Entry(LeftFrame, width=30, textvariable = PasswordConfirm, show = "*")
-        PasswordConfirmEntry.pack(padx=10, pady=10)
+        PasswordConfirmEntry = tk.Entry(LeftFrame, width=40, textvariable = PasswordConfirm, show = "*")
+        PasswordConfirmEntry.pack(padx=10, pady=20)
 
         # Lets add two checkboxes, one to show password and another to confirm the user is over the age of 16
 
@@ -352,7 +349,7 @@ class SignupPage(tk.Frame):
         AgeConfirmation = tk.Checkbutton(LeftFrame, text="I confirm I am over the age of 16", background="#E3E2DF", variable = IsOver16)
         AgeConfirmation.pack(pady=5)
 
-        # Button to switch to the LoginPage
+        # Button to create the account
         SignUpButton = tk.Button(LeftFrame, text="Sign Up", bg = "#5D011E",  fg = "white", width=15, height=2,
                     command=lambda: DetailsValidation())
         SignUpButton.pack(pady=10)
@@ -361,10 +358,10 @@ class SignupPage(tk.Frame):
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
 
-        ContinueAsGuestButton = tk.Button(RightFrame, text="Continue as Guest", bg = "#E3E2DF", width=20, height=2, font = MAIN_FONT,
+        ContinueAsGuestButton = tk.Button(RightFrame, text="Continue as Guest", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
                                           command = lambda: controller.show_frame(DashboardPage))
         ContinueAsGuestButton.pack(pady=20)
-        GoToLoginButton = tk.Button(RightFrame, text="Login", bg="#E3AFBC", font = MAIN_FONT, width=20, height=2, command=lambda: controller.show_frame(LoginPage))
+        GoToLoginButton = tk.Button(RightFrame, text="Login", bg="#E3AFBC", font = MAIN_FONT, width=45, height=4, command=lambda: controller.show_frame(LoginPage))
         GoToLoginButton.pack(pady=20)
 
 class ForgotPasswordPage(tk.Frame):
@@ -395,7 +392,7 @@ class ForgotPasswordPage(tk.Frame):
         parent.show_frame(LoginPage)
         parent.geometry("800x450")
 
-class DashboardPageParticipant(tk.Frame):
+class DashboardPage(tk.Frame):
 
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -432,73 +429,10 @@ class DashboardPageParticipant(tk.Frame):
                                       command = lambda: controller.show_frame(FAQandRulesPage))
         FAQandRulesButton.pack(pady=35)
 
-        # Start adding buttons to the right side
-
-        SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-        SpaceLabel.pack(pady=20)
-
-        UpcomingTournamentsButton = tk.Button(RightFrame, text="Upcoming Tournaments", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT)
-        UpcomingTournamentsButton.pack(pady=35)
-
-        CreateAnAdminButton = tk.Button(RightFrame, text="Create an Admin", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
-                                        command = lambda: controller.show_frame(CreateAnAdminPage))
-        CreateAnAdminButton.pack(pady=35)
-
-        PreviousTournamentsButton = tk.Button(RightFrame, text="Previous Tournaments", bg="#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT)
-        PreviousTournamentsButton.pack(pady=35)
-
-        # Add a label to the middle frame
-
-        MainLabelTop = tk.Label(MiddleFrame, text="Sam's", bg = "#E3E2DF", font=VERY_LARGE_FONT)
-        MainLabelTop.pack(pady=50)
-
-        logo = ImageTk.PhotoImage(Image.open("Main_Logo.png"))
-        LogoLabel = tk.Label(MiddleFrame, image=logo, bg="#E3E2DF")
-        LogoLabel.image = logo
-        LogoLabel.pack()
-
-        MainLabelBottom = tk.Label(MiddleFrame, text="Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
-        MainLabelBottom.pack(pady=50)
-
-        BackButton = tk.Button(MiddleFrame, text="Logout", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(LoginPage))
-        BackButton.pack(pady=20)
-
-class DashboardPageAdmin(tk.Frame):
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        tk.Tk.configure(self, bg="#E3E2DF")
-
-        # Create a frame
-
-        WholeFrame = tk.Frame(self, bg="#E3E2DF")
-        WholeFrame.pack(fill="both", expand=True)
-
-        # Create a frame for the left side of the window and right side of the window
-
-        LeftFrame = tk.Frame(WholeFrame, bg="#5D011E")
-        LeftFrame.pack(side="left", fill="both", expand=True)
-        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
-        RightFrame.pack(side="right", fill="both", expand=True)
-        MiddleFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
-        MiddleFrame.pack(side="right", fill="both", expand=True)
-
-        # Start adding buttons to the left side
-
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-        SpaceLabel.pack(pady=20)
-
-        ScoringCalculatorButton = tk.Button(LeftFrame, text="Scoring Calculator", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT, 
-                                            command=lambda: controller.show_frame(ScoringCalculatorPage))
-        ScoringCalculatorButton.pack(pady=35)
-
-        CreateATournamentButton = tk.Button(LeftFrame, text="Create a Tournament", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
+        CreateATournamentButton = tk.Button(LeftFrame, text="Create a Tournament (ADMIN ONLY)", bg="#5D011E", fg = "white", width=45, height=4, font = MAIN_FONT,
                                             command = lambda: controller.show_frame(CreateATournamentPage))
         CreateATournamentButton.pack(pady=35)
 
-        FAQandRulesButton = tk.Button(LeftFrame, text="FAQ & Rules", bg="#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT,
-                                      command = lambda: controller.show_frame(FAQandRulesPage))
-        FAQandRulesButton.pack(pady=35)
-
         # Start adding buttons to the right side
 
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
@@ -507,12 +441,16 @@ class DashboardPageAdmin(tk.Frame):
         UpcomingTournamentsButton = tk.Button(RightFrame, text="Upcoming Tournaments", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT)
         UpcomingTournamentsButton.pack(pady=35)
 
-        CreateAnAdminButton = tk.Button(RightFrame, text="Create an Admin", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
-                                        command = lambda: controller.show_frame(CreateAnAdminPage))
-        CreateAnAdminButton.pack(pady=35)
+        UnregisterFromTournamentButton = tk.Button(RightFrame, text="Unregister From Tournaments", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
+                                        command = lambda: controller.show_frame(UnregisterFromTournamentPage))
+        UnregisterFromTournamentButton.pack(pady=35)
 
         PreviousTournamentsButton = tk.Button(RightFrame, text="Previous Tournaments", bg="#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT)
         PreviousTournamentsButton.pack(pady=35)
+
+        CreateAnAdminButton = tk.Button(RightFrame, text="Create an Admin (ADMIN ONLY)", bg="#5D011E", fg = "white", width=45, height=4, font = MAIN_FONT,
+                                        command = lambda: controller.show_frame(CreateAnAdminPage))
+        CreateAnAdminButton.pack(pady=35)
 
         # Add a label to the middle frame
 
@@ -526,9 +464,6 @@ class DashboardPageAdmin(tk.Frame):
 
         MainLabelBottom = tk.Label(MiddleFrame, text="Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabelBottom.pack(pady=50)
-
-        AdminViewLabel = tk.Label(MiddleFrame, text="Admin View = ENABLED", bg = "#E3E2DF", font=MAIN_FONT_BOLD)
-        AdminViewLabel.pack(pady=20)
 
         BackButton = tk.Button(MiddleFrame, text="Logout", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(LoginPage))
         BackButton.pack(pady=20)
@@ -547,7 +482,6 @@ class RegisterToTournamentPage(tk.Frame):
             
             # Now we need to 
             
-
         def SelectedTournamentDetails(TournamentName):
             # First we need to find the TournamentID of the selected tournament
             allRows = db.getAllRows(cursor, "tbl_Tournaments")
@@ -581,6 +515,8 @@ class RegisterToTournamentPage(tk.Frame):
                     TournamentDescription = TournamentDescription.split()
                     if len(TournamentDescription) > 8:
                         TournamentDescription = " ".join(TournamentDescription[:8]) + "\n" + " ".join(TournamentDescription[8:])
+                    else:
+                        TournamentDescription = " ".join(TournamentDescription[:8])
                     
                     TournamentDescriptionLabel = tk.Label(RightFrame, text="Tournament Description: " + TournamentDescription, bg = "#5D011E", font=LARGE_FONT) 
                     TournamentDescriptionLabel.pack(pady=20)
@@ -602,7 +538,7 @@ class RegisterToTournamentPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=100)
 
-        MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments - Register To Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel = tk.Label(LeftFrame, text="Register To Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
         TournamentNameLabel = tk.Label(LeftFrame, text="Select the Tournament you'd like to register to", bg = "#E3E2DF", font=LARGE_FONT)
@@ -632,7 +568,7 @@ class RegisterToTournamentPage(tk.Frame):
                                    command = lambda: controller.show_frame(RegisterFormPage))
         RegisterButton.pack(pady=20)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPageParticipant))
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=20)
 
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
@@ -644,9 +580,6 @@ class RegisterFormPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
-
-        def ButtonCallBack():
-            controller.show_frame(RegisterToTournamentPage)
         
         # Start creating the entry fields
             
@@ -682,7 +615,7 @@ class RegisterFormPage(tk.Frame):
         TeamCoachEntry.pack(pady=20)
 
         RegisterButton = tk.Button(self, text="Register", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT,
-                                      command = lambda: controller.show_frame(DashboardPageParticipant))
+                                      command = lambda: controller.show_frame(DashboardPage))
         RegisterButton.pack(pady=20)
 
 class ScoringCalculatorPage(tk.Frame):
@@ -768,7 +701,7 @@ class ScoringCalculatorPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=100)
 
-        MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments Scoring Calculator", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel = tk.Label(LeftFrame, text="Scoring Calculator", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
         TeamPlacementLabel = tk.Label(LeftFrame, text="Team Placement", bg = "#E3E2DF", font=VERY_LARGE_FONT)
@@ -781,10 +714,10 @@ class ScoringCalculatorPage(tk.Frame):
         TeamKillsEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamKills)
         TeamKillsEntry.pack(pady=20)
 
-        CalculateTotalScore = tk.Button(LeftFrame, text="Calculate!", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command = lambda: CalculateScore())
+        CalculateTotalScore = tk.Button(LeftFrame, text="Calculate!", bg="#5D011E", width=20, height=2, fg = "white", font = MAIN_FONT, command = lambda: CalculateScore())
         CalculateTotalScore.pack(pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPageParticipant))
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=5)
 
         # Start adding an explanation for the points scoring on the right hand side
@@ -792,23 +725,23 @@ class ScoringCalculatorPage(tk.Frame):
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=100)
 
-        ScoringCalculatorExplanation = tk.Label(RightFrame, text="Scoring Calculator Explanation", bg = "#5D011E", font=VERY_LARGE_FONT)
+        ScoringCalculatorExplanation = tk.Label(RightFrame, text="Scoring Calculator Explanation", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
         ScoringCalculatorExplanation.pack(pady=20)
 
-        ScoringCalculatorQ1 = tk.Label(RightFrame, text="How does the scoring work?", bg = "#5D011E", font=LARGE_FONT)
+        ScoringCalculatorQ1 = tk.Label(RightFrame, text="How does the scoring work?", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         ScoringCalculatorQ1.pack(pady=20)
 
-        ScoringCalculatorExplanationPlacement = tk.Label(RightFrame, text="1st = 12 points \n 2nd = 9 points \n 3rd = 7 points \n 4th = 5 points \n 5th = 4 points \n 6th - 10th = 2 points \n 11th - 15th = 1 point \n 16th - 20th = 0 points", bg = "#5D011E", font=LARGE_FONT)
+        ScoringCalculatorExplanationPlacement = tk.Label(RightFrame, text="1st = 12 points \n 2nd = 9 points \n 3rd = 7 points \n 4th = 5 points \n 5th = 4 points \n 6th - 10th = 2 points \n 11th - 15th = 1 point \n 16th - 20th = 0 points", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         ScoringCalculatorExplanationPlacement.pack()
-        ScoringCalculatorExplanationKills = tk.Label(RightFrame, text="1 kill = 1 point", bg = "#5D011E", font=LARGE_FONT)
+        ScoringCalculatorExplanationKills = tk.Label(RightFrame, text="1 kill = 1 point", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         ScoringCalculatorExplanationKills.pack()
 
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
 
-        ScoringCalculatorQ2 = tk.Label(RightFrame, text="How do I use the calculator?", bg = "#5D011E", font=LARGE_FONT)
+        ScoringCalculatorQ2 = tk.Label(RightFrame, text="How do I use the calculator?", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         ScoringCalculatorQ2.pack(pady=20)
-        ScoringCalculatorExplanationUse = tk.Label(RightFrame, text="Enter your team placement and number of kills \n and click calculate to see your total score.", bg = "#5D011E", font=LARGE_FONT)
+        ScoringCalculatorExplanationUse = tk.Label(RightFrame, text="Enter your team placement and number of kills \n and click calculate to see your total score.", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         ScoringCalculatorExplanationUse.pack()
 
 class FAQandRulesPage(tk.Frame):
@@ -831,7 +764,7 @@ class FAQandRulesPage(tk.Frame):
         RulesLabel = tk.Label(LeftFrame, text="Rules", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         RulesLabel.pack(pady=20)
 
-        FAQLabel = tk.Label(RightFrame, text="FAQ", bg = "#5D011E", font=VERY_LARGE_FONT)
+        FAQLabel = tk.Label(RightFrame, text="FAQ", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
         FAQLabel.pack(pady=20)
 
         RulesWarning = tk.Label(LeftFrame, text="By violating any of the following rules the \n person or team responsible will be disqualified from \n the tournament and banned from future tournaments.", bg = "#E3E2DF", font=LARGE_FONT)
@@ -853,12 +786,12 @@ class FAQandRulesPage(tk.Frame):
         Rules7.pack(pady=5)
         Rules8.pack(pady=5)
 
-        FAQ1 = tk.Label(RightFrame, text="I am falsely banned, how do I appeal?", bg = "#5D011E", font=LARGE_FONT_BOLD)
-        FAQ1Answer = tk.Label(RightFrame, text="Please contact an admin on Discord \n regarding applications. We will also publicise \n whenever we are seeking more staff.", bg = "#5D011E", font=MEDIUM_FONT)
-        FAQ2 = tk.Label(RightFrame, text="How do I join a tournament?", bg = "#5D011E", font=LARGE_FONT_BOLD)
-        FAQ2Answer = tk.Label(RightFrame, text="Go to the dashboard and click on \n the tournament you wish to join.", bg = "#5D011E", font=MEDIUM_FONT)
-        FAQ3 = tk.Label(RightFrame, text="How do I apply to become an admin?", bg = "#5D011E", font=LARGE_FONT_BOLD)
-        FAQ3Answer = tk.Label(RightFrame, text="Applications are closed as of now. When they open \n information will be available on our discord", bg = "#5D011E", font=MEDIUM_FONT)
+        FAQ1 = tk.Label(RightFrame, text="I am falsely banned, how do I appeal?", bg = "#5D011E", font=LARGE_FONT_BOLD, fg = "white")
+        FAQ1Answer = tk.Label(RightFrame, text="Please contact an admin on Discord \n regarding applications. We will also publicise \n whenever we are seeking more staff.", bg = "#5D011E", font=MEDIUM_FONT, fg = "white")
+        FAQ2 = tk.Label(RightFrame, text="How do I join a tournament?", bg = "#5D011E", font=LARGE_FONT_BOLD, fg = "white")
+        FAQ2Answer = tk.Label(RightFrame, text="Go to the dashboard and click on \n the tournament you wish to join.", bg = "#5D011E", font=MEDIUM_FONT, fg = "white")
+        FAQ3 = tk.Label(RightFrame, text="How do I apply to become an admin?", bg = "#5D011E", font=LARGE_FONT_BOLD, fg = "white")
+        FAQ3Answer = tk.Label(RightFrame, text="Applications are closed as of now. When they open \n information will be available on our discord", bg = "#5D011E", font=MEDIUM_FONT, fg = "white")
         FAQ1.pack(pady=5)
         FAQ1Answer.pack(pady=5)
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
@@ -870,10 +803,10 @@ class FAQandRulesPage(tk.Frame):
         FAQ3.pack(pady=5)
         FAQ3Answer.pack(pady=5)
 
-        Summary = tk.Label(RightFrame, text="If you have any further questions \n please contact an admin on Discord.", bg = "#5D011E", font=MEDIUM_FONT_BOLD)
+        Summary = tk.Label(RightFrame, text="If you have any further questions \n please contact an admin on Discord.", bg = "#5D011E", font=MEDIUM_FONT_BOLD, fg = "white")
         Summary.pack(pady=20)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, command=lambda: controller.show_frame(DashboardPageParticipant))
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", font = MAIN_FONT, width=20, height=2, command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=30)
 
 class CreateAnAdminPage(tk.Frame):
@@ -881,11 +814,11 @@ class CreateAnAdminPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
-        def CreateAdmin(AdminEmail, AdminUsername, AdminPassword, AdminPasswordConfirm):
+        def CreateAdmin():
 
             def SignupConfirmation():
-                db.insertToAccountsTable(connection, cursor, [AdminEmail, AdminUsername, AdminPassword, "Admin"])
-                db.insertToAdministratorsTable(connection, cursor, [AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail])
+                db.insertToAccountsTable(connection, cursor, [AdminUsername.get(), AdminPassword.get(), "Admin"])
+                db.insertToAdministratorsTable(connection, cursor, [AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOB.get(), AdminEmail.get()])
                 messagebox.showinfo("Admin", "You have created an admin successfully!")
                 AdminEmailEntry.delete(0, "end")
                 AdminUsernameEntry.delete(0, "end")
@@ -898,16 +831,16 @@ class CreateAnAdminPage(tk.Frame):
             validPasswordConfirm = False
 
             # Start by checking if the email is valid (it must contain an @ symbol and a .)
-            if "@" in AdminEmail and "." in AdminEmail:
+            if "@" in AdminEmail.get() and "." in AdminEmail.get():
                 validEmail = True
             else:
                 validEmail = False
 
             # Now we need to check if the username is valid (it must be at least 6 characters long and no longer than 15 characters) it also cannot include symbols or spaces
-            if len(AdminUsername) >= 6 and len(AdminUsername) <= 15:
+            if len(AdminUsername.get()) >= 6 and len(AdminUsername.get()) <= 15:
                 validUsername = True
 
-                if any(i.isspace() for i in AdminUsername):
+                if any(i.isspace() for i in AdminUsername.get()):
                     validUsername = False
                 else:
                     validUsername = True
@@ -915,16 +848,16 @@ class CreateAnAdminPage(tk.Frame):
                 validUsername = False
 
             # Now we need to check if the password is valid (must be 8 characters and contain one capital letter and one number and no longer than 18 characters) it also cannot contain spaces
-            if len(AdminPassword) >= 8 and len(AdminPassword) <= 18:
+            if len(AdminPassword.get()) >= 8 and len(AdminPassword.get()) <= 18:
                 validPassword = True
                 
-                if any(i.isdigit() for i in AdminPassword):
+                if any(i.isdigit() for i in AdminPassword.get()):
                     validPassword = True
 
-                    if any(i.isupper() for i in AdminPassword):
+                    if any(i.isupper() for i in AdminPassword.get()):
                         validPassword = True
 
-                        if any(i.isspace() for i in AdminPassword):
+                        if any(i.isspace() for i in AdminPassword.get()):
                             validPassword = False
                         else: 
                             validPassword = True
@@ -936,7 +869,7 @@ class CreateAnAdminPage(tk.Frame):
                 validPassword = False
             
             # Now we need to check if the password confirmation is valid (must be the same as the password)
-            if AdminPassword == AdminPasswordConfirm:
+            if AdminPassword.get() == AdminPasswordConfirm.get():
                 validPasswordConfirm = True
             else:
                 validPasswordConfirm = False
@@ -961,54 +894,89 @@ class CreateAnAdminPage(tk.Frame):
         AdminPassword = tk.StringVar()
         AdminPasswordConfirm = tk.StringVar()
 
-        MainLabel = tk.Label(self, text="Create an Admin", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        # Lets create a main frame
+
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        # Create a frame for the left side of the window and right side of the window
+
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        MainLabel = tk.Label(LeftFrame, text="Create an Admin", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        AdminDiscNameLabel = tk.Label(self, text="Discord Name", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminDiscNameLabel = tk.Label(LeftFrame, text="Discord Name", bg = "#E3E2DF", font=MAIN_FONT)
         AdminDiscNameLabel.pack(padx=10)
-        AdminDiscNameEntry = tk.Entry(self, width=30, textvariable=AdminDiscName)
+        AdminDiscNameEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminDiscName)
         AdminDiscNameEntry.pack(padx=10, pady=10)
 
-        AdminFirstNameLabel = tk.Label(self, text="First Name", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminFirstNameLabel = tk.Label(LeftFrame, text="First Name", bg = "#E3E2DF", font=MAIN_FONT)
         AdminFirstNameLabel.pack(padx=10)
-        AdminFirstNameEntry = tk.Entry(self, width=30, textvariable=AdminFirstName)
+        AdminFirstNameEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminFirstName)
         AdminFirstNameEntry.pack(padx=10, pady=10)
 
-        AdminSurnameLabel = tk.Label(self, text="Surname", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminSurnameLabel = tk.Label(LeftFrame, text="Surname", bg = "#E3E2DF", font=MAIN_FONT)
         AdminSurnameLabel.pack(padx=10)
-        AdminSurnameEntry = tk.Entry(self, width=30, textvariable=AdminSurname)
+        AdminSurnameEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminSurname)
         AdminSurnameEntry.pack(padx=10, pady=10)
 
-        AdminDOBLabel = tk.Label(self, text="Date of Birth", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminDOBLabel = tk.Label(LeftFrame, text="Date of Birth", bg = "#E3E2DF", font=MAIN_FONT)
         AdminDOBLabel.pack(padx=10)
-        AdminDOBEntry = tk.Entry(self, width=30, textvariable=AdminDOB)
+        AdminDOBEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminDOB)
         AdminDOBEntry.pack(padx=10, pady=10)
 
-        AdminEmailLabel = tk.Label(self, text="Email", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminEmailLabel = tk.Label(LeftFrame, text="Email", bg = "#E3E2DF", font=MAIN_FONT)
         AdminEmailLabel.pack(padx=10)
-        AdminEmailEntry = tk.Entry(self, width=30, textvariable=AdminEmail)
+        AdminEmailEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminEmail)
         AdminEmailEntry.pack(padx=10, pady=10)
 
-        AdminUsernameLabel = tk.Label(self, text="Username", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminUsernameLabel = tk.Label(LeftFrame, text="Username", bg = "#E3E2DF", font=MAIN_FONT)
         AdminUsernameLabel.pack(padx=10)
-        AdminUsernameEntry = tk.Entry(self, width=30, textvariable=AdminUsername)
+        AdminUsernameEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminUsername)
         AdminUsernameEntry.pack(padx=10, pady=10)
 
-        AdminPasswordLabel = tk.Label(self, text="Password", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminPasswordLabel = tk.Label(LeftFrame, text="Password", bg = "#E3E2DF", font=MAIN_FONT)
         AdminPasswordLabel.pack(padx=10)
-        AdminPasswordEntry = tk.Entry(self, width=30, textvariable=AdminPassword, show="*")
+        AdminPasswordEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminPassword, show="*")
         AdminPasswordEntry.pack(padx=10, pady=10)
 
-        AdminPasswordConfirmLabel = tk.Label(self, text="Confirm Password", bg = "#E3E2DF", font=MAIN_FONT)
+        AdminPasswordConfirmLabel = tk.Label(LeftFrame, text="Confirm Password", bg = "#E3E2DF", font=MAIN_FONT)
         AdminPasswordConfirmLabel.pack(padx=10)
-        AdminPasswordConfirmEntry = tk.Entry(self, width=30, textvariable=AdminPasswordConfirm, show="*")
+        AdminPasswordConfirmEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminPasswordConfirm, show="*")
         AdminPasswordConfirmEntry.pack(padx=10, pady=10)
 
-        CreateAdminButton = tk.Button(self, text="Create Admin", bg="#E3E2DF", width=10, height=1,
-                                      command = lambda: CreateAdmin(AdminEmail.get(), AdminUsername.get(), AdminPassword.get(), AdminPasswordConfirm.get()))
+        CreateAdminButton = tk.Button(LeftFrame, text="Create Admin", bg="#5D011E", fg = "white", width=20, height=2,
+                                      command = lambda: CreateAdmin())
         CreateAdminButton.pack(pady=5)
-        BackButton = tk.Button(self, text="Back", bg="#E3E2DF", width=10, height=1, command=lambda: controller.show_frame(DashboardPageAdmin))
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, 
+                               command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=5)
+
+        # Start explaining the rules for creating an admin on the right hand side
+
+        SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+        SpaceLabel.pack(pady=30)
+        AdminDiscNameExplanation = tk.Label(RightFrame, text="Discord Name: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminDiscNameExplanation.pack(pady=20)  
+        AdminFirstNameExplanation = tk.Label(RightFrame, text="First Name: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminFirstNameExplanation.pack(pady=20)
+        AdminSurnameExplanation = tk.Label(RightFrame, text="Surname: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminSurnameExplanation.pack(pady=20)
+        AdminDOBExplanation = tk.Label(RightFrame, text="Date of Birth: DD/MM/YYYY", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminDOBExplanation.pack(pady=20)
+        AdminEmailExplanation = tk.Label(RightFrame, text="Email: 50 Characters Max, @. format required", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminEmailExplanation.pack(pady=20)
+        AdminUsernameExplanation = tk.Label(RightFrame, text="Username: 15 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminUsernameExplanation.pack(pady=20)
+        AdminPasswordExplanation = tk.Label(RightFrame, text="Password: 18 Characters Max, 8 Characters Min, \n Must contain 1 capital letter and 1 number", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminPasswordExplanation.pack(pady=20)
+        AdminPasswordConfirmExplanation = tk.Label(RightFrame, text="Confirm Password: Must match password", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        AdminPasswordConfirmExplanation.pack(pady=20)
+
 
 class CreateATournamentPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -1040,10 +1008,10 @@ class CreateATournamentPage(tk.Frame):
         RightFrame.pack(side="right", fill="both", expand=True)
 
 
-        MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments - Create a Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel = tk.Label(LeftFrame, text="Create a Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=LARGE_FONT)
+        TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentNameLabel.pack(padx=10)
         TournamentNameEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentName)
         TournamentNameEntry.pack(padx=10, pady=10)
@@ -1051,7 +1019,7 @@ class CreateATournamentPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=5)
 
-        TournamentDateLabel = tk.Label(LeftFrame, text="Tournament Date", bg = "#E3E2DF", font=LARGE_FONT)
+        TournamentDateLabel = tk.Label(LeftFrame, text="Tournament Date", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDateLabel.pack(padx=10)
         TournamentDateEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentDate)
         TournamentDateEntry.pack(padx=10, pady=10)
@@ -1059,7 +1027,7 @@ class CreateATournamentPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=5)
 
-        TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=LARGE_FONT)
+        TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentTimeLabel.pack(padx=10)
         TournamentTimeEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentTime)
         TournamentTimeEntry.pack(padx=10, pady=10)
@@ -1067,7 +1035,7 @@ class CreateATournamentPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=5)
 
-        TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=LARGE_FONT)
+        TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDescriptionLabel.pack(padx=10)
         TournamentDescriptionEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentDescription)
         TournamentDescriptionEntry.pack(padx=10, pady=10)
@@ -1075,23 +1043,46 @@ class CreateATournamentPage(tk.Frame):
         SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
         SpaceLabel.pack(pady=5)
 
-        CreateTournamentButton = tk.Button(LeftFrame, text="Create Tournament", bg="#E3E2DF", width=20, height=2, 
+        CreateTournamentButton = tk.Button(LeftFrame, text="Create Tournament", bg="#5D011E", fg = "white", width=20, height=2, 
                                            command = lambda: CreateTournament(TournamentName.get(), TournamentDate.get(), TournamentTime.get(), TournamentDescription.get()))
         CreateTournamentButton.pack(pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, 
-                               command = lambda: controller.show_frame(DashboardPageAdmin))
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", width=20, height=2, fg="white",
+                               command = lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=5)
 
         # Start adding an explanation for the points scoring on the right hand side
-        TournamentNameExplanation = tk.Label(RightFrame, text="Tournament Name: 20 Characters Max", bg = "#5D011E", font=LARGE_FONT)
+        SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+        SpaceLabel.pack(pady=30)
+        TournamentNameExplanation = tk.Label(RightFrame, text="Tournament Name: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
         TournamentNameExplanation.pack(pady=20)
-        TournamentDateExplanation = tk.Label(RightFrame, text="Tournament Date: DD/MM/YYYY", bg = "#5D011E", font=LARGE_FONT)
+        TournamentDateExplanation = tk.Label(RightFrame, text="Tournament Date: DD/MM/YYYY", bg = "#5D011E", fg = "white", font=LARGE_FONT)
         TournamentDateExplanation.pack(pady=20)
-        TournamentTimeExplanation = tk.Label(RightFrame, text="Tournament Time: HH:MM", bg = "#5D011E", font=LARGE_FONT)
+        TournamentTimeExplanation = tk.Label(RightFrame, text="Tournament Time: HH:MM", bg = "#5D011E", fg = "white", font=LARGE_FONT)
         TournamentTimeExplanation.pack(pady=20)
-        TournamentDescriptionExplanation = tk.Label(RightFrame, text="Tournament Description: 100 Characters Max", bg = "#5D011E", font=LARGE_FONT)
+        TournamentDescriptionExplanation = tk.Label(RightFrame, text="Tournament Description: 100 Characters Max", fg = "white", bg = "#5D011E", font=LARGE_FONT)
         TournamentDescriptionExplanation.pack(pady=20)
+
+class UnregisterFromTournamentPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        # Create a main frame
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        # Create a frame for the left side of the window and right side of the window
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, 
+                               command=lambda: controller.show_frame(DashboardPage))
+        BackButton.pack(pady=20)
+
 
 # Create an instance of the SamsTournamentsApp class and start the application
 app = SamsTournamentsApp()
