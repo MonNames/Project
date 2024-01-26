@@ -38,7 +38,7 @@ class SamsTournamentsApp(tk.Tk):
         # Create instances of LoginPage and SignupPage
         for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPage, ScoringCalculatorPage, 
                   FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage, RegisterToTournamentPage, 
-                  UnregisterFromTournamentPage):
+                  UnregisterFromTournamentPage, UpcomingTournamentsDetailsPage):
             frame = i(container, self)
             self.frames[i] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -438,7 +438,8 @@ class DashboardPage(tk.Frame):
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
 
-        UpcomingTournamentsButton = tk.Button(RightFrame, text="Upcoming Tournaments", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT)
+        UpcomingTournamentsButton = tk.Button(RightFrame, text="Upcoming Tournaments", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT,
+                                              command=lambda: controller.show_frame(UpcomingTournamentsDetailsPage))
         UpcomingTournamentsButton.pack(pady=35)
 
         UnregisterFromTournamentButton = tk.Button(RightFrame, text="Unregister From Tournaments", bg="#E3AFBC", width=45, height=4, font = MAIN_FONT,
@@ -473,6 +474,21 @@ class RegisterToTournamentPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
+        def RefreshTournaments():
+            #First we need to get the updated tournaments list
+            UpdatedTournaments = []
+            allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournaments:
+                UpdatedTournaments.append(row[1])
+            
+            # Wipe the details from the current Option Menu
+            menu = TournamentsAvailable["menu"]
+            menu.delete(0, "end")
+
+            # Now we need to add the updated tournaments to the Option Menu
+            for tournament in UpdatedTournaments:
+                menu.add_command(label=tournament, command=lambda value=tournament: SelectedTournament.set(value))
+            
         def RegisterToTournament(TournamentName):
             # First we need to find the TournamentID of the selected tournament
             allRows = db.getAllRows(cursor, "tbl_Tournaments")
@@ -480,46 +496,15 @@ class RegisterToTournamentPage(tk.Frame):
                 if row[1] == TournamentName:
                     TournamentID = row[0]
             
-            # Now we need to 
-            
-        def SelectedTournamentDetails(TournamentName):
-            # First we need to find the TournamentID of the selected tournament
-            allRows = db.getAllRows(cursor, "tbl_Tournaments")
-            for row in allRows:
-                if row[1] == TournamentName:
-                    TournamentID = row[0]
-            
-            # Now we need to display the details of the selected tournament
-            
-            allRows = db.getAllRows(cursor, "tbl_Tournaments")
-            for row in allRows:
-                if row[0] == TournamentID:
-                    # First start by clearing any previous labels in the right frame
-                    for widget in RightFrame.winfo_children():
-                        widget.destroy()
-
-                    SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-                    SpaceLabel.pack(pady=100)
-                    TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details", bg = "#5D011E", font=VERY_LARGE_FONT)
-                    TournamentDetailsLabel.pack(pady=20)
-                    TournamentNameLabel = tk.Label(RightFrame, text="Tournament Name: " + row[1], bg = "#5D011E", font=LARGE_FONT)
-                    TournamentNameLabel.pack(pady=20)
-                    TournamentDateLabel = tk.Label(RightFrame, text="Tournament Date: " + row[2], bg = "#5D011E", font=LARGE_FONT)
-                    TournamentDateLabel.pack(pady=20)
-                    TournamentTimeLabel = tk.Label(RightFrame, text="Tournament Time: " + row[3], bg = "#5D011E", font=LARGE_FONT)
-                    TournamentTimeLabel.pack(pady=20)
-
-                    # In order to keep frame size appropriate we will need to split the description into a new line for every 8 words
-
-                    TournamentDescription = row[4]
-                    TournamentDescription = TournamentDescription.split()
-                    if len(TournamentDescription) > 8:
-                        TournamentDescription = " ".join(TournamentDescription[:8]) + "\n" + " ".join(TournamentDescription[8:])
-                    else:
-                        TournamentDescription = " ".join(TournamentDescription[:8])
-                    
-                    TournamentDescriptionLabel = tk.Label(RightFrame, text="Tournament Description: " + TournamentDescription, bg = "#5D011E", font=LARGE_FONT) 
-                    TournamentDescriptionLabel.pack(pady=20)
+            # Now we need to write the team to the database
+            db.insertToTeamsTable(connection, cursor, [TeamName.get(), TeamCaptain.get(), TeamMember2.get(), TeamMember3.get(), TeamCoach.get(), TournamentID])
+            messagebox.showinfo("Success", "Your team h as been successfully registered to the tournament!")
+            SelectedTournament.set("Please Select")
+            TeamNameEntry.delete(0, "end")
+            TeamCaptainEntry.delete(0, "end")
+            TeamMember2Entry.delete(0, "end")
+            TeamMember3Entry.delete(0, "end")
+            TeamCoachEntry.delete(0, "end")
         
         # Create a main frame
             
@@ -535,9 +520,6 @@ class RegisterToTournamentPage(tk.Frame):
 
         # Start creating fields for entry of information
 
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=100)
-
         MainLabel = tk.Label(LeftFrame, text="Register To Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -546,7 +528,7 @@ class RegisterToTournamentPage(tk.Frame):
 
         # Lets find all the tournaments stored in the database
 
-        CurrentTournaments = [""]
+        CurrentTournaments = []
         allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
         for row in allTournaments:
             CurrentTournaments.append(row[1])
@@ -556,67 +538,62 @@ class RegisterToTournamentPage(tk.Frame):
         SelectedTournament = tk.StringVar()
         SelectedTournament.set("Please Select")
 
-        TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, *CurrentTournaments)
-        TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
-        TournamentsAvailable.pack(pady=20)
+        # Let's create an option menu to choose from tournaments in the database.
+        if len(CurrentTournaments) == 0:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, "No Tournaments Available")
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=20)
+        else:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, *CurrentTournaments)
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=20)
 
-        SeeDetailsButton = tk.Button(LeftFrame, text="See Details", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, 
-                                     command = lambda: SelectedTournamentDetails(SelectedTournament.get()))
-        SeeDetailsButton.pack(pady=20)
+        RefreshTournamentsAvailable = tk.Button(LeftFrame, text="Refresh", bg = "#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                                command = lambda: RefreshTournaments())
+        RefreshTournamentsAvailable.pack(pady=20)
 
-        RegisterButton = tk.Button(LeftFrame, text="Register", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, 
-                                   command = lambda: controller.show_frame(RegisterFormPage))
-        RegisterButton.pack(pady=20)
+        # Now let's start creating fields of entry.
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=20)
-
-        SpaceLabel = tk.Label(RightFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=100)
-        TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details", bg = "#5D011E", font=VERY_LARGE_FONT)
-        TournamentDetailsLabel.pack(pady=20)
-
-class RegisterFormPage(tk.Frame):
-    def __init__(self, parent, controller):
-        tk.Frame.__init__(self, parent)
-        tk.Tk.configure(self, bg="#E3E2DF")
-        
-        # Start creating the entry fields
-            
         TeamName = tk.StringVar()
         TeamCaptain = tk.StringVar()
         TeamMember2 = tk.StringVar()
         TeamMember3 = tk.StringVar()
         TeamCoach = tk.StringVar()
 
-        TeamNameLabel = tk.Label(self, text="Team Name", bg = "#E3E2DF", font=LARGE_FONT)
-        TeamNameLabel.pack(pady=20)
-        TeamNameEntry = tk.Entry(self, width=30, textvariable=TeamName)
-        TeamNameEntry.pack(pady=20)
+        TeamNameLabel = tk.Label(LeftFrame, text="Team Name", bg = "#E3E2DF")
+        TeamNameLabel.pack()
+        TeamNameEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamName)
+        TeamNameEntry.pack(pady=5)
 
-        TeamCaptainLabel = tk.Label(self, text="Team Captain", bg = "#E3E2DF", font=LARGE_FONT)
-        TeamCaptainLabel.pack(pady=20)
-        TeamCaptainEntry = tk.Entry(self, width=30, textvariable=TeamCaptain)
-        TeamCaptainEntry.pack(pady=20)
+        TeamCaptainLabel = tk.Label(LeftFrame, text="Team Captain", bg = "#E3E2DF")
+        TeamCaptainLabel.pack()
+        TeamCaptainEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamCaptain)
+        TeamCaptainEntry.pack(pady=5)
 
-        TeamMember2Label = tk.Label(self, text="Team Member 2", bg = "#E3E2DF", font=LARGE_FONT)
-        TeamMember2Label.pack(pady=20)
-        TeamMember2Entry = tk.Entry(self, width=30, textvariable=TeamMember2)
-        TeamMember2Entry.pack(pady=20)
+        TeamMember2Label = tk.Label(LeftFrame, text="Team Member 2", bg = "#E3E2DF")
+        TeamMember2Label.pack()
+        TeamMember2Entry = tk.Entry(LeftFrame, width=30, textvariable=TeamMember2)
+        TeamMember2Entry.pack(pady=5)
 
-        TeamMember3Label = tk.Label(self, text="Team Member 3", bg = "#E3E2DF", font=LARGE_FONT)
-        TeamMember3Label.pack(pady=20)
-        TeamMember3Entry = tk.Entry(self, width=30, textvariable=TeamMember3)
-        TeamMember3Entry.pack(pady=20)
+        TeamMember3Label = tk.Label(LeftFrame, text="Team Member 3", bg = "#E3E2DF")
+        TeamMember3Label.pack()
+        TeamMember3Entry = tk.Entry(LeftFrame, width=30, textvariable=TeamMember3)
+        TeamMember3Entry.pack(pady=5)
 
-        TeamCoachLabel = tk.Label(self, text="Team Coach (Optional)", bg = "#E3E2DF", font=LARGE_FONT)
-        TeamCoachLabel.pack(pady=20)
-        TeamCoachEntry = tk.Entry(self, width=30, textvariable=TeamCoach)
-        TeamCoachEntry.pack(pady=20)
+        TeamCoachLabel = tk.Label(LeftFrame, text="Team Coach (Optional)", bg = "#E3E2DF")
+        TeamCoachLabel.pack()
+        TeamCoachEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamCoach)
+        TeamCoachEntry.pack(pady=5)
 
-        RegisterButton = tk.Button(self, text="Register", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT,
-                                      command = lambda: controller.show_frame(DashboardPage))
-        RegisterButton.pack(pady=20)
+        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF")
+        SpaceLabel.pack()
+
+        RegisterButton = tk.Button(LeftFrame, text="Register", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                        command = lambda: RegisterToTournament(SelectedTournament.get()))
+        RegisterButton.pack(pady=5)
+        
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
+        BackButton.pack(pady=5)
 
 class ScoringCalculatorPage(tk.Frame):
 
@@ -691,15 +668,12 @@ class ScoringCalculatorPage(tk.Frame):
 
         # Create a frame for the left side of the window and right side of the window
 
-        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF") 
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
         # Start creating fields for entry of information
-        
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=100)
 
         MainLabel = tk.Label(LeftFrame, text="Scoring Calculator", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
@@ -721,9 +695,6 @@ class ScoringCalculatorPage(tk.Frame):
         BackButton.pack(pady=5)
 
         # Start adding an explanation for the points scoring on the right hand side
-
-        SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-        SpaceLabel.pack(pady=100)
 
         ScoringCalculatorExplanation = tk.Label(RightFrame, text="Scoring Calculator Explanation", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
         ScoringCalculatorExplanation.pack(pady=20)
@@ -818,8 +789,13 @@ class CreateAnAdminPage(tk.Frame):
 
             def SignupConfirmation():
                 db.insertToAccountsTable(connection, cursor, [AdminUsername.get(), AdminPassword.get(), "Admin"])
-                db.insertToAdministratorsTable(connection, cursor, [AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOB.get(), AdminEmail.get()])
+                UserIDForeignKey = db.getUserID(cursor, AdminUsername.get())
+                db.insertToAdministratorsTable(connection, cursor, [AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOB.get(), AdminEmail.get(), UserIDForeignKey[0]])
                 messagebox.showinfo("Admin", "You have created an admin successfully!")
+                AdminDiscNameEntry.delete(0, "end")
+                AdminFirstNameEntry.delete(0, "end")
+                AdminSurnameEntry.delete(0, "end")
+                AdminDOBEntry.delete(0, "end")
                 AdminEmailEntry.delete(0, "end")
                 AdminUsernameEntry.delete(0, "end")
                 AdminPasswordEntry.delete(0, "end")
@@ -1083,6 +1059,126 @@ class UnregisterFromTournamentPage(tk.Frame):
                                command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=20)
 
+class UpcomingTournamentsDetailsPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        def RefreshTournaments():
+            #First we need to get the updated tournaments list
+            UpdatedTournaments = []
+            allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournaments:
+                UpdatedTournaments.append(row[1])
+            
+            # Wipe the details from the current Option Menu
+            menu = TournamentsAvailable["menu"]
+            menu.delete(0, "end")
+
+            # Now we need to add the updated tournaments to the Option Menu
+            for tournament in UpdatedTournaments:
+                menu.add_command(label=tournament, command=lambda value=tournament: SelectedTournament.set(value))
+
+        def SelectedTournamentDetails(TournamentName):
+            # Let's start by finding the tournament ID of the selected tournament
+            allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournaments:
+                if row[1] == TournamentName:
+                    TournamentID = row[0]
+
+            # Now let's find the tournament details
+            for row in allTournaments:
+                if row[0] == TournamentID:
+                    TournamentDate = row[2]
+                    TournamentTime = row[3]
+                    TournamentDescription = row[4]
+
+                    # Let's now get rid of all current information on the right side frame
+                    for widget in RightFrame.winfo_children():
+                        widget.destroy()
+            
+            # Let's display the details on the right side frame now
+            TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details:", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+            TournamentDetailsLabel.pack(pady=30)            
+            
+            TournamentNameLabel = tk.Label(RightFrame, text="Tournament Name", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+            TournamentNameLabel.pack(pady=5)
+            TournamentNameDetailsLabel = tk.Label(RightFrame, text=TournamentName, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            TournamentNameDetailsLabel.pack(pady=5)
+
+            TournamentDateLabel = tk.Label(RightFrame, text="Tournament Date", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+            TournamentDateLabel.pack(pady=5)
+            TournamentDateDetailsLabel = tk.Label(RightFrame, text=TournamentDate, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            TournamentDateDetailsLabel.pack(pady=10)
+
+            TournamentTimeLabel = tk.Label(RightFrame, text="Tournament Time", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+            TournamentTimeLabel.pack(pady=5)
+            TournamentTimeDetailsLabel = tk.Label(RightFrame, text=TournamentTime, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            TournamentTimeDetailsLabel.pack(pady=10)
+
+            # In order to keep frame size appropriate we will need to split the description into a new line for every 8 words
+            TournamentDescriptionLabel = tk.Label(RightFrame, text="Tournament Description", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+            TournamentDescriptionLabel.pack(pady=5)
+            TournamentDescription = TournamentDescription.split()
+            if len(TournamentDescription) > 8:
+                TournamentDescription = " ".join(TournamentDescription[:8]) + "\n" + " ".join(TournamentDescription[8:])
+            
+            TournamentDescriptionDetailsLabel = tk.Label(RightFrame, text=TournamentDescription, bg = "#5D011E", fg = "white", font=LARGE_FONT) 
+            TournamentDescriptionDetailsLabel.pack(pady=10)
+            
+        #Create a whole frame
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        #Create a frame for the left side of the window and right side of the window
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        # Create a label for the tournament name and a dropdown menu to select the tournament
+        TournamentNameLabel = tk.Label(LeftFrame, text="Upcoming Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        TournamentNameLabel.pack(pady=30)
+
+        # Lets find all the tournaments stored in the database
+        CurrentTournaments = []
+        allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+        for row in allTournaments:
+            CurrentTournaments.append(row[1])
+        
+        # Now let's create a variable to store the selected tournament
+        SelectedTournament = tk.StringVar()
+        SelectedTournament.set("Please Select")
+
+        ChooseATournamentLabel = tk.Label(LeftFrame, text="Choose a Tournament", bg = "#E3E2DF", font=LARGE_FONT)
+        ChooseATournamentLabel.pack(pady=5)
+
+        # Let's create an option menu to choose from tournaments in the database.
+        if len(CurrentTournaments) == 0:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, "No Tournaments Available")
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=20)
+        else:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, *CurrentTournaments)
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=10)
+
+        RefreshTournamentList = tk.Button(LeftFrame, text="Refresh", bg="#5D011E", fg="white", font=MAIN_FONT, width=20, height=2,
+                                          command = lambda: RefreshTournaments())
+        RefreshTournamentList.pack(pady=20)
+
+        SeeTournamentDetailsButton = tk.Button(LeftFrame, text="See Details", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                               command=lambda: SelectedTournamentDetails(SelectedTournament.get()))
+        SeeTournamentDetailsButton.pack(pady=20)
+
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", font=MAIN_FONT, width=20, height=2, 
+                               command=lambda: controller.show_frame(DashboardPage))
+        BackButton.pack(pady=5)
+
+        TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
+        TournamentDetailsLabel.pack(pady=30)
+            
+        
 
 # Create an instance of the SamsTournamentsApp class and start the application
 app = SamsTournamentsApp()
