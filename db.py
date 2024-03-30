@@ -116,5 +116,10 @@ def getUserID(cursor: sql.Cursor, username: str):
     cursor.execute(sql)
     return cursor.fetchone()
 
+def updatetbl_Tournaments(cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ? WHERE TournamentID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
 connection = sql.connect("database.db")
 cursor = connection.cursor()
