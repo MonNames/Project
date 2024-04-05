@@ -4,9 +4,9 @@ import sqlite3 as sql
 def createtbl_Accounts(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Accounts(
         UserID INTEGER PRIMARY KEY,
-        Username VARCHAR(30),
-        Password VARCHAR(30),
-        Role VARCHAR(20)
+        Username VARCHAR(30) NOT NULL,
+        Password VARCHAR(30) NOT NULL,
+        Role VARCHAR(20) NOT NULL
         );'''
     cursor.execute(sql)
 
@@ -14,12 +14,12 @@ def createtbl_Accounts(cursor: sql.Cursor):
 def createtbl_Administrators(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Administrators(
         AdminID INTEGER PRIMARY KEY,
-        AdminDiscName VARCHAR(30),
-        AdminFirstName VARCHAR(20),
-        AdminSurname VARCHAR(20),
-        AdminDOB VARCHAR(20),
-        AdminEmail VARCHAR(50),
-        UserID INTEGER,
+        AdminDiscName VARCHAR(30) NOT NULL,
+        AdminFirstName VARCHAR(20) NOT NULL,
+        AdminSurname VARCHAR(20) NOT NULL,
+        AdminDOB VARCHAR(20) NOT NULL,
+        AdminEmail VARCHAR(50) NOT NULL,
+        UserID INTEGER NOT NULL,
         FOREIGN KEY (UserID) REFERENCES tbl_Accounts(UserID)
         );'''
     cursor.execute(sql)
@@ -28,10 +28,9 @@ def createtbl_Administrators(cursor: sql.Cursor):
 def createtbl_Participants(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Participants(
         ParticipantID INTEGER PRIMARY KEY,
-        ParticipantDOB DATE,
-        ParticipantEmail VARCHAR(20),
-        IsTeamLeader BOOLEAN,
-        UserID INTEGER,
+        ParticipantDOB DATE NOT NULL,
+        ParticipantEmail VARCHAR(20) NOT NULL,
+        UserID INTEGER NOT NULL,
         FOREIGN KEY (UserID) REFERENCES tbl_Accounts(UserID)
         );'''
     cursor.execute(sql)
@@ -40,12 +39,13 @@ def createtbl_Participants(cursor: sql.Cursor):
 def createtbl_Teams(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Teams(
         TeamID INTEGER PRIMARY KEY,
-        TeamName VARCHAR(20),
-        TeamCaptain VARCHAR(20),
-        TeamMember2 VARCHAR(20),
-        TeamMember3 VARCHAR(20),
-        TeamCoach VARCHAR(20),
-        TournamentID INTEGER
+        TeamName VARCHAR(20) NOT NULL,
+        TeamCaptainID INTEGER NOT NULL,
+        TeamMember2Name VARCHAR(20) NOT NULL,
+        TeamMember3Name VARCHAR(20) NOT NULL,
+        TournamentID INTEGER NOT NULL,
+        FOREIGN KEY (TeamCaptainID) REFERENCES tbl_Participants(ParticipantID),
+        FOREIGN KEY (TournamentID) REFERENCES tbl_Tournaments(TournamentID)
         );'''
     cursor.execute(sql)
 
@@ -53,10 +53,10 @@ def createtbl_Teams(cursor: sql.Cursor):
 def createtbl_Tournaments(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Tournaments(
         TournamentID INTEGER PRIMARY KEY,
-        TournamentName VARCHAR(20),
-        TournamentDate DATE,
-        TournamentTime TIME,
-        TournamentDescription VARCHAR(100)
+        TournamentName VARCHAR(20) NOT NULL,
+        TournamentDate DATE NOT NULL,
+        TournamentTime TIME NOT NULL,
+        TournamentDescription VARCHAR(100) NOT NULL
         );'''
     cursor.execute(sql)
 
@@ -76,8 +76,7 @@ def insertToAccountsTable(connection, cursor: sql.Cursor, data: list):
 
 # Create a function that inserts data into the tbl_Administrators table
 def insertToAdministratorsTable(connection, cursor: sql.Cursor, data: list):
-    print(data)
-    sql = f"INSERT INTO tbl_Administrators(AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail, UserID) VALUES(?, ?, ?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Administrators(AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail) VALUES(?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -89,7 +88,7 @@ def insertToParticipantsTable(connection, cursor: sql.Cursor, data: list):
 
 # Create a function that inserts data into the tbl_Teams table
 def insertToTeamsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptain, TeamMember2, TeamMember3, TeamCoach, TournamentID) VALUES(?, ?, ?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainID, TeamMember2Name, TeamMember3Name, TournamentID) VALUES(?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -109,17 +108,6 @@ def getSpecificRows(cursor: sql.Cursor, table, condition):
     sql = f"SELECT * FROM {table} WHERE {condition}"
     cursor.execute(sql)
     return cursor.fetchone()
-
-# Create a function that gets the UserID from the tbl_Accounts table
-def getUserID(cursor: sql.Cursor, username: str):
-    sql = f"SELECT UserID FROM tbl_Accounts WHERE Username = '{username}'"
-    cursor.execute(sql)
-    return cursor.fetchone()
-
-def updatetbl_Tournaments(cursor: sql.Cursor, data: list):
-    sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ? WHERE TournamentID = ?"
-    cursor.execute(sql, data)
-    connection.commit()
 
 connection = sql.connect("database.db")
 cursor = connection.cursor()
