@@ -56,7 +56,9 @@ def createtbl_Tournaments(cursor: sql.Cursor):
         TournamentName VARCHAR(20) NOT NULL,
         TournamentDate DATE NOT NULL,
         TournamentTime TIME NOT NULL,
-        TournamentDescription VARCHAR(100) NOT NULL
+        TournamentDescription VARCHAR(100) NOT NULL,
+        MaxTeams INTEGER NOT NULL,
+        NumGames INTEGER NOT NULL
         );'''
     cursor.execute(sql)
 
@@ -93,7 +95,7 @@ def insertToTeamsTable(connection, cursor: sql.Cursor, data: list):
     connection.commit()
 
 def insertToTournamentsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Tournaments(TournamentName, TournamentDate, TournamentTime, TournamentDescription) VALUES(?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Tournaments(TournamentName, TournamentDate, TournamentTime, TournamentDescription, MaxTeams, NumGames) VALUES(?, ?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -114,6 +116,24 @@ def getUserID(cursor: sql.Cursor, username: str):
     sql = f"SELECT UserID FROM tbl_Accounts WHERE Username = '{username}'"
     cursor.execute(sql)
     return cursor.fetchone()
+
+# Create a function that allows the deletion of a specific row from the tournaments table
+def deleteTournament(connection, cursor: sql.Cursor, tournamentID: int):
+    sql = f"DELETE FROM tbl_Tournaments WHERE TournamentID = {tournamentID}"
+    cursor.execute(sql)
+    connection.commit()
+
+# Create a function for getting all the names of the tournaments
+def getAllTournamentNames(cursor: sql.Cursor):
+    sql = "SELECT TournamentName FROM tbl_Tournaments"
+    cursor.execute(sql)
+    return cursor.fetchall()
+
+# Create a function for updating the details of a tournament
+def updateTournamentDetails(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ?, MaxTeams = ?, NumGames = ? WHERE TournamentID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
 
 connection = sql.connect("database.db")
 cursor = connection.cursor()

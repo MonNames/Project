@@ -5,7 +5,8 @@ from PIL import ImageTk, Image
 import db
 import sqlite3 as sql
 from idlelib.tooltip import Hovertip
-from tkcalendar import Calendar, DateEntry
+from tkcalendar import Calendar
+from time import strftime
 
 MAIN_FONT = ("Arial", 12)
 MAIN_FONT_BOLD = ("Arial bold", 12)
@@ -406,6 +407,11 @@ class DashboardPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
+
+        def time():
+            string = strftime('%H:%M:%S %p')
+            ClockLabel.config(text = "TIME: " + string)
+            ClockLabel.after(1000, time)
     
         # Create a frame
 
@@ -442,6 +448,11 @@ class DashboardPage(tk.Frame):
                                             command = lambda: controller.show_frame(CreateATournamentPage))
         CreateATournamentButton.pack(pady=35)
 
+        # Add a clock label to the very bottom of the window on the left
+        ClockLabel = tk.Label(LeftFrame, font=MAIN_FONT_BOLD, bg="#5D011E", fg="white")
+        ClockLabel.pack(side="bottom", pady=20)
+        time()
+
         # Start adding buttons to the right side
 
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
@@ -462,10 +473,18 @@ class DashboardPage(tk.Frame):
                                         command = lambda: controller.show_frame(CreateAnAdminPage))
         CreateAnAdminButton.pack(pady=35)
 
+        # Add a system version label to the very bottom of the window on the right
+
+        SystemVersionLabel = tk.Label(RightFrame, text="SYSTEM VERSION: 1.2", font=MAIN_FONT_BOLD, bg="#5D011E", fg="white")
+        SystemVersionLabel.pack(side="bottom", pady=20)
+
         # Add a label to the middle frame
 
+        SpaceLabel = tk.Label(MiddleFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
+        SpaceLabel.pack(pady=10)
+
         MainLabelTop = tk.Label(MiddleFrame, text="Sam's", bg = "#E3E2DF", font=VERY_LARGE_FONT)
-        MainLabelTop.pack(pady=50)
+        MainLabelTop.pack(pady=60)
 
         logo = ImageTk.PhotoImage(Image.open("Main_Logo.png"))
         LogoLabel = tk.Label(MiddleFrame, image=logo, bg="#E3E2DF")
@@ -478,6 +497,11 @@ class DashboardPage(tk.Frame):
         BackButton = tk.Button(MiddleFrame, text="Logout", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, 
                                command=lambda: controller.show_frame(LoginPage))
         BackButton.pack(pady=20)
+
+        # Add a logged in as label to the very bottom of the window in the middle
+
+        LoggedInAsLabel = tk.Label(MiddleFrame, text="LOGGED IN AS: " + "EXAMPLEUSER", font=MAIN_FONT_BOLD, bg="#E3E2DF")
+        LoggedInAsLabel.pack(side="bottom", pady=20)
         
 class RegisterToTournamentPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -1058,7 +1082,7 @@ class CreateATournamentPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
-        def CreateTournament(TournamentName, TournamentDate, TournamentTime, TournamentDescription):
+        def CreateTournament(TournamentName, TournamentDate, TournamentTime, TournamentDescription, MaxTeams, NumGames):
 
             def validTime(time):
                 # First lets ensure the string is not empty
@@ -1086,7 +1110,7 @@ class CreateATournamentPage(tk.Frame):
                 return True
                 
             def WriteToDatabase():
-                db.insertToTournamentsTable(connection, cursor, [TournamentName, TournamentDate, TournamentTime, TournamentDescription])
+                db.insertToTournamentsTable(connection, cursor, [TournamentName, TournamentDate, TournamentTime, TournamentDescription, MaxTeams, NumGames])
                 messagebox.showinfo("Tournament", "You have created a tournament successfully!")
                 TournamentNameEntry.delete(0, "end")
                 TournamentDateCalendar.selection_set("01-01-2024")
@@ -1101,6 +1125,15 @@ class CreateATournamentPage(tk.Frame):
                 messagebox.showerror("Error", "Please enter a valid Tournament name.")
                 TournamentNameEntry.focus()
                 valid = False
+
+            # We also want to ensure that there are no tournaments with the same name
+            allNames = db.getAllTournamentNames(cursor)
+            numElements = len(allNames)
+            for i in range(numElements):
+                if TournamentName == allNames[i][0]:
+                    messagebox.showerror("Error", "Please enter a unique Tournament name.")
+                    TournamentNameEntry.focus()
+                    valid = False
             
             # Lets check if the Tournament Time is valid
             if validTime(TournamentTime) == False:
@@ -1131,15 +1164,14 @@ class CreateATournamentPage(tk.Frame):
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
-
         MainLabel = tk.Label(LeftFrame, text="Create Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        editicon = tk.PhotoImage(file="editicon.png")
+        editicon = tk.PhotoImage(file="updatedicon.png")
         editicon.image = editicon
-        EditButton = tk.Button(LeftFrame, image=editicon, compound="left", height=3, width=20,
+        EditButton = tk.Button(LeftFrame, image=editicon, compound="left", bg = "#E3E2DF",
                                command=lambda: controller.show_frame(EditTournamentsPage))
-        EditButton.place(x=15, y=15)
+        EditButton.place(x=625, y=25)
 
         TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentNameLabel.pack(padx=10)
@@ -1185,7 +1217,7 @@ class CreateATournamentPage(tk.Frame):
         SpaceLabel.pack(pady=5)
 
         CreateTournamentButton = tk.Button(LeftFrame, text="Create Tournament", bg="#5D011E", fg = "white", width=20, height=2, 
-                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.selection_get(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END)))
+                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.get_date(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END), MaxTeams.get(), NumGames.get()))
         CreateTournamentButton.pack(pady=5)
 
         BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", width=20, height=2, fg="white",
@@ -1195,7 +1227,7 @@ class CreateATournamentPage(tk.Frame):
         # Start adding an explanation for the points scoring on the right hand side
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=30)
-        TournamentNameExplanation = tk.Label(RightFrame, text="Tournament Name: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
+        TournamentNameExplanation = tk.Label(RightFrame, text="Tournament Name: 20 Characters Max\n TOURNAMENT NAMES MUST BE UNIQUE", bg = "#5D011E", fg = "white", font=LARGE_FONT)
         TournamentNameExplanation.pack(pady=20)
         TournamentDateExplanation = tk.Label(RightFrame, text="Choose an appropriate Tournament Date\nSet at 01/01/2024 by default", bg = "#5D011E", fg = "white", font=LARGE_FONT)
         TournamentDateExplanation.pack(pady=20)
@@ -1216,6 +1248,93 @@ class EditTournamentsPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
+        def RefreshTournaments():
+            #First we need to get the updated tournaments list
+            UpdatedTournaments = []
+            allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournaments: 
+                UpdatedTournaments.append(row[1])
+            
+            # Wipe the details from the current Option Menu
+            menu = TournamentsAvailable["menu"]
+            menu.delete(0, "end")
+
+            # Now we need to add the updated tournaments to the Option Menu
+            for tournament in UpdatedTournaments:
+                menu.add_command(label=tournament, command=lambda value=tournament: SelectedTournament.set(value))
+            
+            # Refresh the tournaments every 3 seconds
+            self.after(3000, RefreshTournaments)
+
+        def LoadDetails(tournament):
+            # First lets check if the user has selected a tournament
+            if tournament == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+            
+            # Now lets find the details of the tournament
+            tournamentDetails = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in tournamentDetails:
+                if row[1] == tournament:
+                    tournamentName = row[1]
+                    tournamentDate = row[2]
+                    tournamentTime = row[3]
+                    tournamentDescription = row[4]
+                    break
+            
+            # Now lets load the details into the entry boxes
+            TournamentName.set(tournamentName)
+            TournamentDateCalendar.selection_set(tournamentDate)
+            TournamentTime.set(tournamentTime)
+            TournamentDescriptionEntry.delete("1.0", tk.END)
+            TournamentDescriptionEntry.insert(tk.INSERT, tournamentDescription)
+        
+        def CommitChanges(ChosenTournament):
+            # First lets check if the user has selected a tournament
+            if SelectedTournament == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+            
+            # Lets find the tournament ID
+            allTournamentDetails = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournamentDetails:
+                if row[1] == ChosenTournament:
+                    tournamentID = row[0]
+                    break
+            
+            # Now lets get the details entered by the user
+            tournamentName = TournamentName.get()
+            tournamentDate = TournamentDateCalendar.get_date()
+            tournamentTime = TournamentTime.get()
+            tournamentDescription = TournamentDescriptionEntry.get("1.0", tk.END)
+            maxTeams = MaxTeams.get()
+            numGames = NumGames.get()
+
+            db.updateTournamentDetails(connection, cursor, [tournamentName, tournamentDate, tournamentTime, tournamentDescription, maxTeams, numGames, tournamentID])
+            messagebox.showinfo("Tournament", "Tournament details updated successfully!")
+
+            SelectedTournament.set("Please Select")
+            TournamentName.set("")
+            TournamentDateCalendar.selection_set("01-01-2024")
+            TournamentTime.set("")
+            TournamentDescriptionEntry.delete("1.0", tk.END)
+
+        def DeleteTournament(tournament):
+            if tournament == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+
+            allTournamentDetails = db.getAllRows(cursor, "tbl_Tournaments")
+            for row in allTournamentDetails:
+                if row[1] == tournament:
+                    tournamentID = row[0]
+                    break
+            confirm = messagebox.askyesno("Delete Tournament", "Are you sure you want to delete tournament: " + tournament + "?")
+            if confirm:
+                db.deleteTournament(connection, cursor, tournamentID)
+                messagebox.showinfo("Tournament", "Tournament deleted successfully!")
+                SelectedTournament.set("Please Select")
+
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
@@ -1225,10 +1344,93 @@ class EditTournamentsPage(tk.Frame):
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
-        # Create a label for the tournament name and a dropdown menu to select the tournament
-        TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=VERY_LARGE_FONT)
-        TournamentNameLabel.pack(pady=30)
+        MainLabel = tk.Label(LeftFrame, text="Edit Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel.pack(pady=10)
         
+        # Lets find all the tournaments stored in the database
+        CurrentTournaments = []
+        allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+        for row in allTournaments:
+            CurrentTournaments.append(row[1])
+        
+        # Now let's create a variable to store the selected tournament
+        SelectedTournament = tk.StringVar()
+        SelectedTournament.set("Please Select")
+
+        ChooseATournamentLabel = tk.Label(LeftFrame, text="Choose a Tournament", bg = "#E3E2DF", font=LARGE_FONT)
+        ChooseATournamentLabel.pack(pady=5)
+
+        # Let's create an option menu to choose from tournaments in the database.
+        if len(CurrentTournaments) == 0:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, "No Tournaments Available")
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=10)
+        else:
+            TournamentsAvailable = tk.OptionMenu(LeftFrame, SelectedTournament, *CurrentTournaments)
+            TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
+            TournamentsAvailable.pack(pady=10)
+
+        LoadDetailsButton = tk.Button(LeftFrame, text="Load Details", bg="#5D011E", fg="white", width=20, height=2, font=MAIN_FONT,
+                                      command = lambda: LoadDetails(SelectedTournament.get()))
+        LoadDetailsButton.pack(pady=5)
+
+        TournamentName = tk.StringVar()
+        TournamentTime = tk.StringVar()
+
+        TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentNameLabel.pack()
+        TournamentNameEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentName)
+        TournamentNameEntry.pack(pady=10)
+
+        TournamentDateLabel = tk.Label(LeftFrame, text="Tournament Date", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentDateLabel.pack(padx=10)
+        TournamentDateCalendar = Calendar(LeftFrame, selectmode="day", year=2024, month=1, day=1)
+        TournamentDateCalendar.pack(padx=10, pady=5)
+
+        TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentTimeLabel.pack()
+        TournamentTimeEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentTime)
+        TournamentTimeEntry.pack(pady=10)
+
+        TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
+        TournamentDescriptionLabel.pack(padx=10)
+        TournamentDescriptionEntry = scrolledtext.ScrolledText(LeftFrame, wrap=tk.WORD, width=40, height=10)
+        TournamentDescriptionEntry.pack(padx=10, pady=10)
+
+        MaxTeamsList = ["20", "40", "80"]
+        MaxTeams = tk.StringVar()
+        MaxTeams.set(MaxTeamsList[0])
+        MaxTeamsLabel = tk.Label(LeftFrame, text="Max Teams", bg = "#E3E2DF", font=MAIN_FONT)
+        MaxTeamsLabel.pack()
+        MaxTeamsDrop = tk.OptionMenu(LeftFrame, MaxTeams, *MaxTeamsList)
+        MaxTeamsDrop.pack(pady=10)
+
+        NumGamesLabel = tk.Label(LeftFrame, text="Number of Games", bg = "#E3E2DF", font=MAIN_FONT)
+        NumGamesLabel.pack(padx=10)
+        NumGamesList = ["4", "6", "8"]
+        NumGames = tk.StringVar()
+        NumGames.set(NumGamesList[0])
+        NumGamesDrop = tk.OptionMenu(LeftFrame, NumGames, *NumGamesList)
+        NumGamesDrop.pack(pady=10)
+
+        CommitChangesButton = tk.Button(LeftFrame, text="Commit Changes", fg="white", bg="#5D011E", width=20, height=2, font=MAIN_FONT,
+                                        command=lambda: CommitChanges(SelectedTournament.get()))
+        CommitChangesButton.pack(padx=10)
+
+        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                 command=lambda: controller.show_frame(CreateATournamentPage))
+        BackButton.pack(pady=5)
+
+        # Now lets use the right hand panel to create a delete tournament section
+        DeleteTournamentLabel = tk.Label(RightFrame, text="Delete Tournament", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
+        DeleteTournamentLabel.pack(pady=10)
+
+        ExplanationLabel = tk.Label(RightFrame, text="Please select a tournament from the dropdown\n menu on the left to delete a tournament.", bg = "#5D011E", font=LARGE_FONT, fg = "white")
+        ExplanationLabel.pack(pady=10)
+
+        DeleteTournamentButton = tk.Button(RightFrame, text="Delete Tournament", bg="#E3E2DF", fg="black", width=20, height=2, font=MAIN_FONT,
+                                           command = lambda: DeleteTournament(SelectedTournament.get()))
+        DeleteTournamentButton.pack(pady=5)
 
 class UnregisterFromTournamentPage(tk.Frame):
     def __init__(self, parent, controller):
