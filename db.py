@@ -76,7 +76,7 @@ def insertToAccountsTable(connection, cursor: sql.Cursor, data: list):
 
 # Create a function that inserts data into the tbl_Administrators table
 def insertToAdministratorsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Administrators(AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail) VALUES(?, ?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Administrators(AdminDiscName, AdminFirstName, AdminSurname, AdminDOB, AdminEmail, UserID) VALUES(?, ?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -106,6 +106,12 @@ def getAllRows(cursor: sql.Cursor, table: str):
 # Create a function that gets specific rows from a table based on a condition
 def getSpecificRows(cursor: sql.Cursor, table, condition):
     sql = f"SELECT * FROM {table} WHERE {condition}"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+# Create a function that gets the UserID of a user based on their username
+def getUserID(cursor: sql.Cursor, username: str):
+    sql = f"SELECT UserID FROM tbl_Accounts WHERE Username = '{username}'"
     cursor.execute(sql)
     return cursor.fetchone()
 
