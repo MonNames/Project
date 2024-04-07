@@ -1,0 +1,8 @@
+User:
+Username - ConstUser
+Password - GlenM0re
+GameName - ConstUserGameName
+
+Admin:
+Username - ConstAdmin
+Password - GlenM0re

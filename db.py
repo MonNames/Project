@@ -28,8 +28,9 @@ def createtbl_Administrators(cursor: sql.Cursor):
 def createtbl_Participants(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Participants(
         ParticipantID INTEGER PRIMARY KEY,
-        ParticipantDOB DATE NOT NULL,
+        ParticipantGameName VARCHAR(20) NOT NULL,
         ParticipantEmail VARCHAR(20) NOT NULL,
+        ParticipantGender VARCHAR(20) NOT NULL,
         UserID INTEGER NOT NULL,
         FOREIGN KEY (UserID) REFERENCES tbl_Accounts(UserID)
         );'''
@@ -40,11 +41,12 @@ def createtbl_Teams(cursor: sql.Cursor):
     sql = '''CREATE TABLE IF NOT EXISTS tbl_Teams(
         TeamID INTEGER PRIMARY KEY,
         TeamName VARCHAR(20) NOT NULL,
-        TeamCaptainID INTEGER NOT NULL,
+        TeamCaptainName VARCHAR(20) NOT NULL,
         TeamMember2Name VARCHAR(20) NOT NULL,
         TeamMember3Name VARCHAR(20) NOT NULL,
+        TeamCoach VARCHAR(20) NOT NULL,
         TournamentID INTEGER NOT NULL,
-        FOREIGN KEY (TeamCaptainID) REFERENCES tbl_Participants(ParticipantID),
+        FOREIGN KEY (TeamCaptainName) REFERENCES tbl_Participants(ParticipantID),
         FOREIGN KEY (TournamentID) REFERENCES tbl_Tournaments(TournamentID)
         );'''
     cursor.execute(sql)
@@ -84,13 +86,13 @@ def insertToAdministratorsTable(connection, cursor: sql.Cursor, data: list):
 
 # Create a function that inserts data into the tbl_Participants table
 def insertToParticipantsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Participants(ParticipantDOB, ParticipantEmail, IsTeamLeader, UserID, TeamID) VALUES(?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Participants(ParticipantGameName, ParticipantEmail, ParticipantGender, UserID) VALUES(?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
 # Create a function that inserts data into the tbl_Teams table
 def insertToTeamsTable(connection, cursor: sql.Cursor, data: list):
-    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainID, TeamMember2Name, TeamMember3Name, TournamentID) VALUES(?, ?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainName, TeamMember2Name, TeamMember3Name, TeamCoach, TournamentID) VALUES(?, ?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -134,6 +136,48 @@ def updateTournamentDetails(connection, cursor: sql.Cursor, data: list):
     sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ?, MaxTeams = ?, NumGames = ? WHERE TournamentID = ?"
     cursor.execute(sql, data)
     connection.commit()
+
+# Create a function that gets the ParticipantGameName of a participant based on their UserID
+def getParticipantGameName(cursor: sql.Cursor, userID: int):
+    sql = f"SELECT ParticipantGameName FROM tbl_Participants WHERE UserID = '{userID}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+# Create a function that returns the name of the Tournament based on the TournamentID
+def getTournamentName(cursor: sql.Cursor, tournamentID: int):
+    sql = f"SELECT TournamentName FROM tbl_Tournaments WHERE TournamentID = '{tournamentID}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+# Create a function that returns the name of the Team based on the TeamID
+def getTeamName(cursor: sql.Cursor, teamID: int):
+    sql = f"SELECT TeamName FROM tbl_Teams WHERE TeamID = '{teamID}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+# Create a function that deletes a team based on the TeamID
+def deleteTeam(connection, cursor: sql.Cursor, teamID: int):
+    sql = f"DELETE FROM tbl_Teams WHERE TeamID = {teamID}"
+    cursor.execute(sql)
+    connection.commit()
+
+# Create a function that updates the password of a user based on their UserID
+def updateUserPassword(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Accounts SET Password = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+# Create a function that gets the user ID of a user based on their email
+def getUserIDfromEmail(cursor: sql.Cursor, email: str):
+    sql = f"SELECT UserID FROM tbl_Participants WHERE ParticipantEmail = '{email}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+# Create a function that gets the user ID of a admim based on their email
+def getAdminIDfromEmail(cursor: sql.Cursor, email: str):
+    sql = f"SELECT UserID FROM tbl_Administrators WHERE AdminEmail = '{email}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
 
 connection = sql.connect("database.db")
 cursor = connection.cursor()
