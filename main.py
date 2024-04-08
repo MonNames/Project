@@ -13,6 +13,7 @@ from email.message import EmailMessage
 import random
 import string
 
+# Constants
 MAIN_FONT = ("Arial", 12)
 MAIN_FONT_BOLD = ("Arial bold", 12)
 MEDIUM_FONT = ("Arial", 15)
@@ -22,6 +23,7 @@ LARGE_FONT_BOLD = ("Arial bold", 18)
 VERY_LARGE_FONT = ("Arial bold", 25)
 UNDERLINED_FONT = ("Arial underline", 8)
 
+# Create the database and tables and connect to the database
 connection = sql.connect("database.db")
 cursor = connection.cursor()
 db.createTables(cursor)
@@ -86,6 +88,7 @@ class LoginPage(tk.Frame):
             controller.show_frame(DashboardPage)
             
         def show_and_hide():
+            # Show and hide the password 
             if PasswordEntry["show"] == "*":
                 PasswordEntry["show"] = ""
             else:
@@ -120,20 +123,22 @@ class LoginPage(tk.Frame):
                     loggedinAs = Username
                     userOrAdmin(Username)
 
+            if IsChecked.get() == 1:
+                with open("RememberMe.txt", "w") as file:
+                    file.write(Username + " " + Password)
+            else:
+                with open("RememberMe.txt", "w") as file:
+                    file.write("")
+
         tk.Frame.__init__(self, parent)
         tk.Frame.configure(self, bg="#E3E2DF")
 
         # Create StringVars for User Entry
-
         Username = tk.StringVar()
         Password = tk.StringVar()
         IsChecked = tk.IntVar()
 
-        Username.set("ConstUser")
-        Password.set("GlenM0re1948")
-
         # Check if there are any details in the Remember Me File, if not set the variables equal to them
-
         with open("RememberMe.txt", "r") as file:
             for line in file:
                 if line != "":
@@ -141,19 +146,16 @@ class LoginPage(tk.Frame):
                     Password.set(line.split()[1])
 
         # Create a frame 
-
         WholeFrame = tk.Frame(self, bg="#5D011E")
         WholeFrame.pack(fill="both", expand=True)
 
         # Create a frame for the left side of the window and right side of the window
-
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
         # Start creating fields for entry of information
-
         MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -194,7 +196,6 @@ class LoginPage(tk.Frame):
         GoToSignUpButton.pack(pady=35)
 
     # Creating an intermediary function to do two things at once on one button press
-
     def ButtonCallBack(self, parent, ForgotPasswordPage):
         parent.show_frame(ForgotPasswordPage)
         parent.geometry("1920x1080")
@@ -308,7 +309,6 @@ class SignupPage(tk.Frame):
                 messagebox.showerror("Error", "Please make sure your passwords match.")
 
             # Now we need to check if the user has selected a gender
-
             if GenderVar.get() == "Please Select":
                 messagebox.showerror("Error", "Please select a Gender.")
                 genderGiven = False
@@ -316,7 +316,6 @@ class SignupPage(tk.Frame):
                 genderGiven = True
 
             # Now we need to check if the user has checked the over 16 box
-
             if IsOver16.get() == 1:
                 over16 = True
             else:
@@ -330,7 +329,6 @@ class SignupPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
 
         # Create StringVars for User Entry
-
         Email = tk.StringVar()
         Username = tk.StringVar()
         GameName = tk.StringVar()
@@ -338,19 +336,16 @@ class SignupPage(tk.Frame):
         PasswordConfirm = tk.StringVar()
 
         # Create a frame
-
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
         # Create a frame for the left side of the window and right side of the window
-
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
         # Start creating fields for entry of information
-        
         MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -370,7 +365,6 @@ class SignupPage(tk.Frame):
         GameNameEntry.pack(padx=10, pady=20)
 
         # Create values to be used in the drop down menu
-
         Gender = ["Male", "Female"]
         GenderVar = tk.StringVar()
         GenderVar.set("Please Select")
@@ -392,7 +386,6 @@ class SignupPage(tk.Frame):
         PasswordConfirmEntry.pack(padx=10, pady=20)
 
         # Lets add two checkboxes, one to show password and another to confirm the user is over the age of 16
-
         ShowPassword = tk.Checkbutton(LeftFrame, text="Show Password", bg = "#E3E2DF", command=lambda: show_and_hide())
         ShowPassword.pack()
 
@@ -417,7 +410,6 @@ class SignupPage(tk.Frame):
         GoToLoginButton.pack(pady=20)
 
         # Right Side Labels
-
         ValidUserLabel = tk.Label(RightFrame, text="A Valid username must contain:\n- At least 6 characters\n- No symbols or spaces", fg = "white", bg="#5D011E", font=LARGE_FONT)
         ValidUserLabel.pack(pady=20)
         ValidPassLabel = tk.Label(RightFrame, text="A Valid password must contain:\n- At least 8 characters\n- At least one capital letter\n- At least one number", fg="white", bg="#5D011E", font=LARGE_FONT)
@@ -547,7 +539,7 @@ class ResetPasswordPage(tk.Frame):
             
             def SendAdminResetEmail():
                 if NewPass.get() == ConfirmPass.get():
-                    UserID = db.getAdminUserIDfromEmail(cursor, receiver_email)
+                    UserID = db.getAdminIDfromEmail(cursor, receiver_email)
                     db.updateUserPassword(connection, cursor, [NewPass.get(), UserID[0]])
                     messagebox.showinfo("Success", "Your password has been successfully reset.")
                     BackToLogin()
@@ -697,7 +689,7 @@ class DashboardPage(tk.Frame):
         MainLabelTop = tk.Label(MiddleFrame, text="Sam's", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabelTop.pack(pady=60)
 
-        logo = ImageTk.PhotoImage(Image.open("Main_Logo.png"))
+        logo = ImageTk.PhotoImage(Image.open("Images and Icons/Main_Logo.png"))
         LogoLabel = tk.Label(MiddleFrame, image=logo, bg="#E3E2DF")
         LogoLabel.image = logo
         LogoLabel.pack()
@@ -1387,7 +1379,7 @@ class CreateATournamentPage(tk.Frame):
         MainLabel = tk.Label(LeftFrame, text="Create Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        editicon = tk.PhotoImage(file="updatedicon.png")
+        editicon = tk.PhotoImage(file="Images and Icons/updatedicon.png")
         editicon.image = editicon
         EditButton = tk.Button(LeftFrame, image=editicon, compound="left", bg = "#E3E2DF",
                                command=lambda: controller.show_frame(EditTournamentsPage))
