@@ -1,17 +1,17 @@
 import tkinter as tk
-from tkinter import messagebox
-from tkinter import scrolledtext
+from tkinter import messagebox, scrolledtext
 from PIL import ImageTk, Image
-import db
+import db, random, string
 import sqlite3 as sql
 from idlelib.tooltip import Hovertip
-from tkcalendar import Calendar
+from tkcalendar import DateEntry
 from time import strftime
 from datetime import datetime
 import smtplib, ssl
 from email.message import EmailMessage
-import random
-import string
+import validate as vd
+import email_recovery as email
+import functions as fn
 
 MAIN_FONT = ("Arial", 12)
 MAIN_FONT_BOLD = ("Arial bold", 12)
@@ -25,12 +25,14 @@ UNDERLINED_FONT = ("Arial underline", 8)
 connection = sql.connect("database.db")
 cursor = connection.cursor()
 db.createTables(cursor)
+db.createConstUser(cursor)
+db.createConstAdmin(cursor)
 
 global isAdmin
 isAdmin = False
 
 global loggedinAs
-loggedinAs = "EXAMPLEUSER"
+loggedinAs = "EXAMLEUSER"
 
 class SamsTournamentsApp(tk.Tk):
     
@@ -75,6 +77,7 @@ class LoginPage(tk.Frame):
             controller.geometry("375x200")
 
         def userOrAdmin(Username):
+            """Check if the user is an admin or a participant."""
             global isAdmin
             allRows = db.getAllRows(cursor, "tbl_Accounts")
             for row in allRows:
@@ -86,17 +89,22 @@ class LoginPage(tk.Frame):
             controller.show_frame(DashboardPage)
             
         def show_and_hide():
+            """Show and hide the password in the password entry field."""
             if PasswordEntry["show"] == "*":
                 PasswordEntry["show"] = ""
             else:
                 PasswordEntry["show"] = "*"
 
         def Login(Username, Password):
-            # Checking if the user has entered a username and password
-            if Username == "" or Password == "":
-                messagebox.showerror("Error", "Please enter a username and password.")
+            # Checking if the user has entered a valid length username and password
+            if vd.presenceCheck(Username) == "Invalid":
+                messagebox.showerror("Error", "Please enter a username.")
+                UsernameEntry.focus()
+            elif vd.presenceCheck(Password) == "Invalid":
+                messagebox.showerror("Error", "Please enter a password.")
+                UsernameEntry.focus()
             else:
-                # Checking the database to see if the user has entered a valid username and password
+                # Check if the username and password entered are valid
                 allRows = db.getAllRows(cursor, "tbl_Accounts")
                 validUsername = False
                 validPassword = False
@@ -105,17 +113,15 @@ class LoginPage(tk.Frame):
                         validUsername = True
                         if Password == row[2]:
                             validPassword = True
-                        else:
-                            validPassword = False
                 
                 if validUsername == False:
-                    messagebox.showerror("Error", "Please enter a valid username.")
+                    messagebox.showerror("Error", "The username you entered is invalid.")
                     UsernameEntry.focus()
                 elif validPassword == False:
-                    messagebox.showerror("Error", "Please enter a valid password.")
+                    messagebox.showerror("Error", "The password you entered is invalid.")
                     PasswordEntry.focus()
                 else:
-                    messagebox.showinfo("Success", "You have logged in successfully!")
+                    messagebox.showinfo("Login", "You have logged in successfully.")
                     global loggedinAs
                     loggedinAs = Username
                     userOrAdmin(Username)
@@ -124,16 +130,14 @@ class LoginPage(tk.Frame):
         tk.Frame.configure(self, bg="#E3E2DF")
 
         # Create StringVars for User Entry
-
         Username = tk.StringVar()
         Password = tk.StringVar()
         IsChecked = tk.IntVar()
 
-        Username.set("ConstUser")
-        Password.set("GlenM0re1948")
+        Username.set("ConstAdmin")
+        Password.set("Password1")
 
         # Check if there are any details in the Remember Me File, if not set the variables equal to them
-
         with open("RememberMe.txt", "r") as file:
             for line in file:
                 if line != "":
@@ -141,19 +145,16 @@ class LoginPage(tk.Frame):
                     Password.set(line.split()[1])
 
         # Create a frame 
-
         WholeFrame = tk.Frame(self, bg="#5D011E")
         WholeFrame.pack(fill="both", expand=True)
 
         # Create a frame for the left side of the window and right side of the window
-
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
         # Start creating fields for entry of information
-
         MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -193,9 +194,8 @@ class LoginPage(tk.Frame):
                                      command=lambda: controller.show_frame(SignupPage))
         GoToSignUpButton.pack(pady=35)
 
-    # Creating an intermediary function to do two things at once on one button press
-
     def ButtonCallBack(self, parent, ForgotPasswordPage):
+        """Creating an intermediary function to do two things at once on one button press"""
         parent.show_frame(ForgotPasswordPage)
         parent.geometry("1920x1080")
 
@@ -215,14 +215,6 @@ class SignupPage(tk.Frame):
                 PasswordConfirmEntry["show"] = "*"
 
         def DetailsValidation():
-            
-            emailTaken = False
-            validEmail = False
-            validUsername = False
-            validPassword = False
-            validPasswordConfirm = False
-            over16 = False
-            genderGiven = False
 
             def SignupConfirmation():
                 db.insertToAccountsTable(connection, cursor, [Username.get(), Password.get(), "User"])
@@ -235,102 +227,45 @@ class SignupPage(tk.Frame):
                 GenderVar.set("Please Select")
                 PasswordEntry.delete(0, "end")
                 PasswordConfirmEntry.delete(0, "end")
-        
-            # Start by checking if the email is valid (it must contain an @ symbol and a .) and cannot contain spaces
-            if "@" in Email.get() and "." in Email.get():
-                validEmail = True
-
-                if any(i.isspace() for i in Email.get()):
-                    validEmail = False
-                else:
-                    validEmail = True
-            else:
-                validEmail = False
-
-            # We need to check if the email is already taken
-            allRows = db.getAllRows(cursor, "tbl_Participants")
-            for row in allRows:
-                if Email.get() == row[1]:
-                    emailTaken = True
-
-            # Now we need to check if the username is valid (it must be at least 6 characters long and no longer than 15 characters) it also cannot include symbols or spaces
-            if len(Username.get()) >= 6 and len(Username.get()) <= 15:
-                validUsername = True
-
-                if any(i.isalpha() for i in Username.get()):
-                    validUsername = True
-
-                    if any(i.isspace() for i in Username.get()):
-                        validUsername = False
-                    else:
-                        validUsername = True
-                else:
-                    validUsername = False
-            else:
-                validUsername = False
-
-            # Now we need to check if the password is valid (must be 8 characters and contain one capital letter and one number and no longer than 18 characters) it also cannot contain spaces
-            if len(Password.get()) >= 8 and len(Password.get()) <= 18:
-                validPassword = True
-                
-                if any(i.isdigit() for i in Password.get()):
-                    validPassword = True
-
-                    if any(i.isupper() for i in Password.get()):
-                        validPassword = True
-
-                        if any(i.isspace() for i in Password.get()):
-                            validPassword = False
-                        else: 
-                            validPassword = True
-                    else:
-                        validPassword = False
-                else:
-                    validPassword = False    
-            else:
-                validPassword = False
             
-            # Now we need to check if the password confirmation is valid (must be the same as the password)
-            if Password.get() == PasswordConfirm.get():
-                validPasswordConfirm = True
+            validEmail = False
+            if vd.emailIsValid(Email.get(), "Participant") == "Valid":
+                validEmail = True
+            elif vd.emailIsValid(Email.get(), "Participant") == "Taken":
+                messagebox.showerror("Error", "The email you entered is already associated with an account.")
+                EmailEntry.focus()
             else:
-                validPasswordConfirm = False
-
-            if validEmail == False:
-                messagebox.showerror("Error", "Please enter a valid email address.")
-            elif emailTaken == True:
-                messagebox.showerror("Error", "The email you entered is already in use.")
-            elif validUsername == False:
-                messagebox.showerror("Error", "Please enter a valid username.")
-            elif validPassword == False:
-                messagebox.showerror("Error", "Please enter a valid password.")
-            elif validPasswordConfirm == False:
-                messagebox.showerror("Error", "Please make sure your passwords match.")
-
-            # Now we need to check if the user has selected a gender
-
-            if GenderVar.get() == "Please Select":
-                messagebox.showerror("Error", "Please select a Gender.")
-                genderGiven = False
+                messagebox.showerror("Error", "The email you entered is invalid.")
+                EmailEntry.focus()
+            
+            validUsername = False
+            if vd.usernameIsValid(Username.get()) == "Valid":
+                validUsername = True
+            elif vd.usernameIsValid(Username.get()) == "Taken":
+                messagebox.showerror("Error", "The username you entered is already taken.")
+                UsernameEntry.focus()
             else:
-                genderGiven = True
-
-            # Now we need to check if the user has checked the over 16 box
-
+                messagebox.showerror("Error", "The username you entered is invalid.")
+                UsernameEntry.focus()
+            
+            validPassword = False
+            if vd.passwordIsValid(Password.get(), PasswordConfirm.get()) == "Valid":
+                validPassword = True
+            else:
+                messagebox.showerror("Error", "The password you entered is invalid.")
+                PasswordEntry.focus()
+            
+            IsOver16 = False
             if IsOver16.get() == 1:
-                over16 = True
-            else:
-                over16 = False
-                messagebox.showerror("Error", "Please confirm you are over the age of 16.")
-
-            if validEmail == True and validUsername == True and genderGiven == True and validPassword == True and validPasswordConfirm == True and over16 == True:
+                IsOver16 = True
+            
+            if validEmail == True and validUsername == True and validPassword == True and IsOver16 == True:
                 SignupConfirmation()
 
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
         # Create StringVars for User Entry
-
         Email = tk.StringVar()
         Username = tk.StringVar()
         GameName = tk.StringVar()
@@ -338,19 +273,16 @@ class SignupPage(tk.Frame):
         PasswordConfirm = tk.StringVar()
 
         # Create a frame
-
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
         # Create a frame for the left side of the window and right side of the window
-
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
         # Start creating fields for entry of information
-        
         MainLabel = tk.Label(LeftFrame, text="Sam's Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -370,7 +302,6 @@ class SignupPage(tk.Frame):
         GameNameEntry.pack(padx=10, pady=20)
 
         # Create values to be used in the drop down menu
-
         Gender = ["Male", "Female"]
         GenderVar = tk.StringVar()
         GenderVar.set("Please Select")
@@ -392,7 +323,6 @@ class SignupPage(tk.Frame):
         PasswordConfirmEntry.pack(padx=10, pady=20)
 
         # Lets add two checkboxes, one to show password and another to confirm the user is over the age of 16
-
         ShowPassword = tk.Checkbutton(LeftFrame, text="Show Password", bg = "#E3E2DF", command=lambda: show_and_hide())
         ShowPassword.pack()
 
@@ -430,6 +360,7 @@ class ForgotPasswordPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
 
         def CheckEmail():
+            """Check if the email entered is associated with an account."""
             global receiver_email
             receiver_email = RecoveryEmail.get()
             # Check if the email is in either the administrator or participant table
@@ -456,6 +387,7 @@ class ForgotPasswordPage(tk.Frame):
             controller.geometry("1920x1080")
 
         def SendRecoveryEmail():
+            """Send an email to the user with a recovery token."""
             port = 465
             smtp_server = "smtp.gmail.com"
             sender_email = "samstournaments@gmail.com"
@@ -492,7 +424,7 @@ class ForgotPasswordPage(tk.Frame):
         RecoveryEmailEntry = tk.Entry(self, width=40, textvariable=RecoveryEmail)
         RecoveryEmailEntry.pack(pady=5)
 
-        SendRecoveryEmailButton = tk.Button(self, text="Send", bg="#E3E2DF", width=8, height=1, command = lambda: CheckEmail())
+        SendRecoveryEmailButton = tk.Button(self, text="Send", bg="#E3E2DF", width=8, height=1, command = lambda: email.checkEmail(RecoveryEmail.get(), RecoveryEmailEntry))
         SendRecoveryEmailButton.pack(pady=5)
 
         NextButton = tk.Button(self, text="Next", bg="#E3E2DF", width=8, height=1, command=lambda: controller.show_frame(RecoveryTokenPage))
@@ -642,9 +574,6 @@ class DashboardPage(tk.Frame):
         MiddleFrame.pack(side="right", fill="both", expand=True)
 
         # Start adding buttons to the left side
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-        SpaceLabel.pack(pady=20)
-
         ScoringCalculatorButton = tk.Button(LeftFrame, text="Scoring Calculator", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT, 
                                             command=lambda: controller.show_frame(ScoringCalculatorPage))
         ScoringCalculatorButton.pack(pady=35)
@@ -667,9 +596,6 @@ class DashboardPage(tk.Frame):
         time()
 
         # Start adding buttons to the right side
-        SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
-        SpaceLabel.pack(pady=20)
-
         UpcomingTournamentsButton = tk.Button(RightFrame, text="Upcoming Tournaments", bg="#E3E2DF", width=45, height=4, font = MAIN_FONT,
                                               command=lambda: controller.show_frame(UpcomingTournamentsDetailsPage))
         UpcomingTournamentsButton.pack(pady=35)
@@ -691,13 +617,10 @@ class DashboardPage(tk.Frame):
         SystemVersionLabel.pack(side="bottom", pady=20)
 
         # Add a label to the middle frame
-        SpaceLabel = tk.Label(MiddleFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=10)
-
         MainLabelTop = tk.Label(MiddleFrame, text="Sam's", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabelTop.pack(pady=60)
 
-        logo = ImageTk.PhotoImage(Image.open("Main_Logo.png"))
+        logo = ImageTk.PhotoImage(Image.open("Images and Icons/Main_Logo.png"))
         LogoLabel = tk.Label(MiddleFrame, image=logo, bg="#E3E2DF")
         LogoLabel.image = logo
         LogoLabel.pack()
@@ -727,7 +650,7 @@ class RegisterToTournamentPage(tk.Frame):
             currentDate = datetime.now()
 
             for row in allTournaments:
-                if datetime.strptime(row[2], "%m/%d/%y") >= currentDate:
+                if datetime.strptime(row[2], "%d/%m/%Y") >= currentDate:
                     FutureTournamentsUpdated.append(row[1])
 
             menu = TournamentsAvailable["menu"]
@@ -883,7 +806,7 @@ class RegisterToTournamentPage(tk.Frame):
         TeamCoachExplanation = tk.Label(RightFrame, text="Team Coach: The in game name of the team coach\n (If you have no coach leave empty) max 20 chars", bg = "#5D011E", font=LARGE_FONT, fg = "white")
         TeamCoachExplanation.pack(pady=10)
 
-        checkPastFuture()
+        fn.newCheckPastFuture(self, "future", TournamentsAvailable)
 
 class ScoringCalculatorPage(tk.Frame):
 
@@ -1093,60 +1016,7 @@ class CreateAnAdminPage(tk.Frame):
                 AdminPasswordConfirmEntry["show"] = "*"
 
         def CreateAdmin(AdminDiscNameStore, AdminFirstNameStore, AdminSurnameStore, AdminDOBStore, AdminEmailStore, AdminUsernameStore, AdminPasswordStore, AdminPasswordConfirmStore):
-
-            def validPassword(password, confirmPassword):
-                # First lets check if the password is empty
-                if password == "":
-                    return False
-                
-                # Now lets check if the password is the same as the confirm password
-                if password != confirmPassword:
-                    return False
-                
-                # Now lets check if the password is valid, starting by checking if it contains a capital letter
-                if not any(char.isupper() for char in password):
-                    return False
-                
-                # Now lets check if the password is valid, starting by checking if it contains a number
-                if not any(char.isdigit() for char in password):
-                    return False
-                
-                # Now lets check if the password is too long or too short
-                if len(password) > 18 or len(password) < 8:
-                    return False
-                
-                return True
-
-            def validEmail(email):
-                # First lets check if the email is empty
-                if email == "":
-                    return False
-                
-                # Now lets check if the email is valid, starting by checking if it contains an @ symbol
-                if "@" not in email:
-                    return False
-                
-                # Now lets check if the email is too long
-                if len(email) > 50:
-                    return False
-                
-                # Now lets separate the email into two parts, the username and the domain
-                emailParts = email.split("@")
-                local = emailParts[0]
-                domain = emailParts[1]
-
-                # Lets check that the domain part contains a . symbol
-                if "." not in domain:
-                    return False
-
-                # Now lets check if the local part or domain partstarts or ends with a . symbol
-                if local.startswith(".") or local.endswith("."):
-                    return False
-                elif domain.startswith(".") or domain.endswith("."):
-                    return False
-                
-                return True
-
+    
             def SignupConfirmation():
                 db.insertToAccountsTable(connection, cursor, [AdminUsernameStore, AdminPasswordStore, "Admin"])
                 UserIDForeignKey = db.getUserID(cursor, AdminUsernameStore)
@@ -1155,54 +1025,61 @@ class CreateAnAdminPage(tk.Frame):
                 AdminDiscNameEntry.delete(0, "end")
                 AdminFirstNameEntry.delete(0, "end")
                 AdminSurnameEntry.delete(0, "end")
-                AdminDOBCalendar.selection_set("01-01-2008")
+                AdminDOBCalendar.set_date("01-01-2008")
                 AdminEmailEntry.delete(0, "end")
                 AdminUsernameEntry.delete(0, "end")
                 AdminPasswordEntry.delete(0, "end")
                 AdminPasswordConfirmEntry.delete(0, "end")
         
             # Validate the details entered by the user
-            valid = True
-
-            # Lets start by checking if the Discord name is valid, it must be less than 20 characters and not empty
-            if AdminDiscNameStore == "" or len(AdminDiscNameStore) > 20:
-                messagebox.showerror("Error", "Please enter a valid Discord name.")
+            validDiscName = False
+            if vd.lengthCheck(AdminDiscNameStore, 20, 4) == False:
+                messagebox.showerror("Error", "Discord Name must be between 4-20 chars.")
                 AdminDiscNameEntry.focus()
-                valid = False
+            else:
+                validDiscName = True
             
-            # Lets check if the first name is valid, it must be less than 20 characters and not empty
-            if AdminFirstNameStore == "" or len(AdminFirstNameStore) > 20:
-                messagebox.showerror("Error", "Please enter a valid first name.")
+            validFirstName = False
+            if vd.lengthCheck(AdminFirstNameStore, 20, 1) == False:
+                messagebox.showerror("Error", "First Name must be between 1-20 chars.")
                 AdminFirstNameEntry.focus()
-                valid = False
-
-            # Lets check if the surname is valid, it must be less than 20 characters and not empty
-            if AdminSurnameStore == "" or len(AdminSurnameStore) > 20:
-                messagebox.showerror("Error", "Please enter a valid surname.")
+            else:
+                validFirstName = True
+            
+            validSurname = False
+            if vd.lengthCheck(AdminSurnameStore, 20, 1) == False:
+                messagebox.showerror("Error", "Surname must be between 1-20 chars.")
                 AdminSurnameEntry.focus()
-                valid = False
-
-            # Lets check if the email is valid
-            if validEmail(AdminEmailStore) == False:
+            else:
+                validSurname = True
+            
+            validEmail = False
+            if vd.emailIsValid(AdminEmailStore) == "Valid":
+                validEmail = True
+            elif vd.emailIsValid(AdminEmailStore) == "Taken":
+                messagebox.showerror("Error", "Email is already in use.")
+                AdminEmailEntry.focus()
+            else:
                 messagebox.showerror("Error", "Please enter a valid email.")
                 AdminEmailEntry.focus()
-                valid = False
-            
-            # Lets check if the username is valid, it must be less than 20 characters and not empty
-            if AdminUsername == "" or len(AdminUsernameStore) > 20:
-                messagebox.showerror("Error", "Please enter a valid username.")
+                
+            validUsername = False
+            if vd.lengthCheck(AdminUsernameStore, 20, 4) == False:
+                messagebox.showerror("Error", "Username must be between 4-20 chars.")
                 AdminUsernameEntry.focus()
-                valid = False
+            else:
+                validUsername = True
             
-            # Lets check if the password is valid
-            if validPassword(AdminPasswordStore, AdminPasswordConfirmStore) == False:
-                messagebox.showerror("Error", "Please enter a valid password.")
+            validPassword = False
+            if vd.lengthCheck(AdminPasswordStore, 20, 4) == False:
+                messagebox.showerror("Error", "Password must be between 4-20 chars.")
                 AdminPasswordEntry.focus()
-                valid = False
-            
-            if valid:
+            else:
+                validPassword = True
+
+            if validDiscName and validFirstName and validSurname and validEmail and validUsername and validPassword:
                 SignupConfirmation()
-        
+            
         AdminDiscName = tk.StringVar()
         AdminFirstName = tk.StringVar()
         AdminSurname = tk.StringVar()
@@ -1212,12 +1089,10 @@ class CreateAnAdminPage(tk.Frame):
         AdminPasswordConfirm = tk.StringVar()
 
         # Lets create a main frame
-
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
         # Create a frame for the left side of the window and right side of the window
-
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
@@ -1243,7 +1118,7 @@ class CreateAnAdminPage(tk.Frame):
 
         AdminDOBLabel = tk.Label(LeftFrame, text="Date of Birth", bg = "#E3E2DF", font=MAIN_FONT)
         AdminDOBLabel.pack(padx=10)
-        AdminDOBCalendar = Calendar(LeftFrame, selectmode="day", year=2008, month=1, day=1)
+        AdminDOBCalendar = DateEntry(LeftFrame, selectmode="day", year=2008, month=1, day=1, date_pattern="dd-mm-yyyy")
         AdminDOBCalendar.pack(padx=10, pady=10)
 
         AdminEmailLabel = tk.Label(LeftFrame, text="Email", bg = "#E3E2DF", font=MAIN_FONT)
@@ -1270,14 +1145,13 @@ class CreateAnAdminPage(tk.Frame):
         ShowPassword.pack(pady=10)
 
         CreateAdminButton = tk.Button(LeftFrame, text="Create Admin", bg="#5D011E", fg = "white", width=20, height=2,
-                                      command = lambda: CreateAdmin(AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOBCalendar.selection_get(), AdminEmail.get(), AdminUsername.get(), AdminPassword.get(), AdminPasswordConfirm.get()))
+                                      command = lambda: CreateAdmin(AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOBCalendar.get(), AdminEmail.get(), AdminUsername.get(), AdminPassword.get(), AdminPasswordConfirm.get()))
         CreateAdminButton.pack(pady=5)
         BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, 
                                command=lambda: controller.show_frame(DashboardPage))
         BackButton.pack(pady=5)
 
         # Start explaining the rules for creating an admin on the right hand side
-
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=30)
         AdminDiscNameExplanation = tk.Label(RightFrame, text="Discord Name: 20 Characters Max", bg = "#5D011E", fg = "white", font=LARGE_FONT)
@@ -1303,71 +1177,47 @@ class CreateATournamentPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
 
         def CreateTournament(TournamentName, TournamentDate, TournamentTime, TournamentDescription, MaxTeams, NumGames):
-
-            def validTime(time):
-                # First lets ensure the string is not empty
-                if time == "":
-                    return False
-                
-                # Now lets check if the time has a coloon in the middle
-                if ":" not in time:
-                    return False
-                
-                # Now lets check if the time is in integers
-                timeParts = time.split(":")
-                try:
-                    hours = int(timeParts[0])
-                    minutes = int(timeParts[1])
-                except ValueError:
-                    return False
-                
-                # Now lets check if the hours and minutes are within the correct range
-                if hours < 0 or hours > 23:
-                    return False
-                if minutes < 0 or minutes > 59:
-                    return False
-                
-                return True
+            """Validate the details entered by the user"""
                 
             def WriteToDatabase():
+                """Write the details to the database"""
                 db.insertToTournamentsTable(connection, cursor, [TournamentName, TournamentDate, TournamentTime, TournamentDescription, MaxTeams, NumGames])
                 messagebox.showinfo("Tournament", "You have created a tournament successfully!")
                 TournamentNameEntry.delete(0, "end")
-                TournamentDateCalendar.selection_set("01-01-2024")
+                TournamentDateCalendar.set_date("01-01-2024")
                 TournamentTimeEntry.delete(0, "end")
                 TournamentDescriptionEntry.delete("1.0", tk.END)
             
-            # Validate the details entered by the user
-            valid = True
-
-            # Lets start by checking if the Tournament Name is valid, it must be less than 20 characters and not empty
-            if TournamentName == "" or len(TournamentName) > 20:
+            validName = False
+            if vd.lengthCheck(TournamentName, 20, 1) == False:
                 messagebox.showerror("Error", "Please enter a valid Tournament name.")
                 TournamentNameEntry.focus()
-                valid = False
-
-            # We also want to ensure that there are no tournaments with the same name
-            allNames = db.getAllTournamentNames(cursor)
-            numElements = len(allNames)
-            for i in range(numElements):
-                if TournamentName == allNames[i][0]:
-                    messagebox.showerror("Error", "Please enter a unique Tournament name.")
-                    TournamentNameEntry.focus()
-                    valid = False
-            
-            # Lets check if the Tournament Time is valid
-            if validTime(TournamentTime) == False:
+            else:
+                validName = True
+            validTime = False
+            if vd.timeCheck(TournamentTime) == False:
                 messagebox.showerror("Error", "Please enter a valid time. Format: HH:MM")
                 TournamentTimeEntry.focus()
-                valid = False
+            else:
+                validTime = True
+
+            # We also want to ensure that there are no tournaments with the same name
+            tournamentNameTaken = False
+            if vd.duplicateCheck(TournamentName, "tbl_Tournaments", "TournamentName") == "Taken":
+                messagebox.showerror("Error", "Tournament name is already taken.")
+                TournamentNameEntry.focus()
+            else:
+                tournamentNameTaken = True
 
             # Lets check if the Tournament Description is valid, it must be less than 100 characters and not empty
-            if TournamentDescription == "" or len(TournamentDescription) > 100:
+            descValid = False
+            if vd.lengthCheck(TournamentDescription, 100, 1) == False:
                 messagebox.showerror("Error", "Please enter a valid Tournament description.")
                 TournamentDescriptionEntry.focus()
-                valid = False
+            else:
+                descValid = True
             
-            if valid:
+            if validTime and validName and tournamentNameTaken and descValid:
                 WriteToDatabase()
 
         # Create StringVars for User Entry
@@ -1387,7 +1237,7 @@ class CreateATournamentPage(tk.Frame):
         MainLabel = tk.Label(LeftFrame, text="Create Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
-        editicon = tk.PhotoImage(file="updatedicon.png")
+        editicon = tk.PhotoImage(file="Images and Icons/updatedicon.png")
         editicon.image = editicon
         EditButton = tk.Button(LeftFrame, image=editicon, compound="left", bg = "#E3E2DF",
                                command=lambda: controller.show_frame(EditTournamentsPage))
@@ -1397,13 +1247,10 @@ class CreateATournamentPage(tk.Frame):
         TournamentNameLabel.pack(padx=10)
         TournamentNameEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentName)
         TournamentNameEntry.pack(padx=10, pady=5)
-        
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=5)
 
         TournamentDateLabel = tk.Label(LeftFrame, text="Tournament Date", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDateLabel.pack(padx=10)
-        TournamentDateCalendar = Calendar(LeftFrame, selectmode="day", year=2024, month=1, day=1)
+        TournamentDateCalendar = DateEntry(LeftFrame, selectmode="day", year=2024, month=1, day=1, date_pattern="dd-mm-yyyy")
         TournamentDateCalendar.pack(padx=10, pady=5)
 
         TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
@@ -1413,7 +1260,7 @@ class CreateATournamentPage(tk.Frame):
 
         TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDescriptionLabel.pack(padx=10)
-        TournamentDescriptionEntry = scrolledtext.ScrolledText(LeftFrame, wrap=tk.WORD, width=40, height=10)
+        TournamentDescriptionEntry = scrolledtext.ScrolledText(LeftFrame, wrap=tk.WORD, width=40, height=5)
         TournamentDescriptionEntry.pack(padx=10, pady=10)
 
         MaxTeamsLabel = tk.Label(LeftFrame, text="Max Teams", bg = "#E3E2DF", font=MAIN_FONT)
@@ -1433,11 +1280,8 @@ class CreateATournamentPage(tk.Frame):
         NumGamesDrop = tk.OptionMenu(LeftFrame, NumGames, *NumGamesList)
         NumGamesDrop.pack(pady=10)
 
-        SpaceLabel = tk.Label(LeftFrame, text="", bg = "#E3E2DF", font=MAIN_FONT)
-        SpaceLabel.pack(pady=5)
-
         CreateTournamentButton = tk.Button(LeftFrame, text="Create Tournament", bg="#5D011E", fg = "white", width=20, height=2, 
-                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.get_date(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END), MaxTeams.get(), NumGames.get()))
+                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.get(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END), MaxTeams.get(), NumGames.get()))
         CreateTournamentButton.pack(pady=5)
 
         BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", width=20, height=2, fg="white",
@@ -1501,7 +1345,7 @@ class EditTournamentsPage(tk.Frame):
             
             # Now lets load the details into the entry boxes
             TournamentName.set(tournamentName)
-            TournamentDateCalendar.selection_set(tournamentDate)
+            TournamentDateCalendar.set_date(tournamentDate)
             TournamentTime.set(tournamentTime)
             TournamentDescriptionEntry.delete("1.0", tk.END)
             TournamentDescriptionEntry.insert(tk.INSERT, tournamentDescription)
@@ -1521,7 +1365,7 @@ class EditTournamentsPage(tk.Frame):
             
             # Now lets get the details entered by the user
             tournamentName = TournamentName.get()
-            tournamentDate = TournamentDateCalendar.get_date()
+            tournamentDate = TournamentDateCalendar.get()
             tournamentTime = TournamentTime.get()
             tournamentDescription = TournamentDescriptionEntry.get("1.0", tk.END)
             maxTeams = MaxTeams.get()
@@ -1532,7 +1376,7 @@ class EditTournamentsPage(tk.Frame):
 
             SelectedTournament.set("Please Select")
             TournamentName.set("")
-            TournamentDateCalendar.selection_set("01-01-2024")
+            TournamentDateCalendar.set_date("01-01-2024")
             TournamentTime.set("")
             TournamentDescriptionEntry.delete("1.0", tk.END)
 
@@ -1601,7 +1445,7 @@ class EditTournamentsPage(tk.Frame):
 
         TournamentDateLabel = tk.Label(LeftFrame, text="Tournament Date", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDateLabel.pack(padx=10)
-        TournamentDateCalendar = Calendar(LeftFrame, selectmode="day", year=2024, month=1, day=1)
+        TournamentDateCalendar = DateEntry(LeftFrame, selectmode="day", year=2024, month=1, day=1, date_pattern="dd-mm-yyyy")
         TournamentDateCalendar.pack(padx=10, pady=5)
 
         TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
@@ -1611,8 +1455,8 @@ class EditTournamentsPage(tk.Frame):
 
         TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDescriptionLabel.pack(padx=10)
-        TournamentDescriptionEntry = scrolledtext.ScrolledText(LeftFrame, wrap=tk.WORD, width=40, height=10)
-        TournamentDescriptionEntry.pack(padx=10, pady=10)
+        TournamentDescriptionEntry = scrolledtext.ScrolledText(LeftFrame, wrap=tk.WORD, width=40, height=5)
+        TournamentDescriptionEntry.pack(padx=10)
 
         MaxTeamsList = ["20", "40", "80"]
         MaxTeams = tk.StringVar()
@@ -1620,7 +1464,7 @@ class EditTournamentsPage(tk.Frame):
         MaxTeamsLabel = tk.Label(LeftFrame, text="Max Teams", bg = "#E3E2DF", font=MAIN_FONT)
         MaxTeamsLabel.pack()
         MaxTeamsDrop = tk.OptionMenu(LeftFrame, MaxTeams, *MaxTeamsList)
-        MaxTeamsDrop.pack(pady=10)
+        MaxTeamsDrop.pack()
 
         NumGamesLabel = tk.Label(LeftFrame, text="Number of Games", bg = "#E3E2DF", font=MAIN_FONT)
         NumGamesLabel.pack(padx=10)
@@ -1628,7 +1472,7 @@ class EditTournamentsPage(tk.Frame):
         NumGames = tk.StringVar()
         NumGames.set(NumGamesList[0])
         NumGamesDrop = tk.OptionMenu(LeftFrame, NumGames, *NumGamesList)
-        NumGamesDrop.pack(pady=10)
+        NumGamesDrop.pack()
 
         CommitChangesButton = tk.Button(LeftFrame, text="Commit Changes", fg="white", bg="#5D011E", width=20, height=2, font=MAIN_FONT,
                                         command=lambda: CommitChanges(SelectedTournament.get()))
@@ -1768,7 +1612,7 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
             currentDate = datetime.now()
 
             for row in allTournaments:
-                if datetime.strptime(row[2], "%m/%d/%y") >= currentDate:
+                if datetime.strptime(row[2], "%d-%m-%Y") >= currentDate:
                     FutureTournamentsUpdated.append(row[1])
 
             menu = TournamentsAvailable["menu"]
@@ -1934,7 +1778,7 @@ class PreviousTournamentsPage(tk.Frame):
             currentDate = datetime.now()
 
             for row in allTournaments:
-                if datetime.strptime(row[2], "%m/%d/%y") < currentDate:
+                if datetime.strptime(row[2], "%d-%m-%Y") < currentDate:
                     PreviousTournamentsUpdated.append(row[1])
 
             menu = ChooseATournamentDrop["menu"]
