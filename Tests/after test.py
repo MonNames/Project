@@ -5,23 +5,35 @@ from tkinter import *
 
 def Main():
 
-    def UpdateValue(Value):
-        Value += 1
-        DisplayValueLabel.config(text="Value: " + str(Value))
-        root.after(1000, UpdateValue, Value)
-        
-    root = tk.Tk()
-    root.geometry("30x30")
-    root.title("Tournament Management System")
+    def RefreshOptions():
+        UpdatedOptions = ["Option 1", "Option 2", "Option 3", "Option 4", EntryVar.get()]
+        NewOption = EntryVar.get()
+        Options.append(NewOption)
 
-    Value = 0
-    DisplayValueLabel = Label(root, text="Value: " + str(Value))
-    DisplayValueLabel.pack()
+        menu = DropDown["menu"]
+        menu.delete(0, "end")
 
-    # Recursively update the value every second
-    UpdateValue(Value)
+        menu.add_command(label="Select an Option", command=lambda value=NewOption: EntryVar.set(value))
 
-    root.mainloop()
+
+    MainWindow = Tk()
+    MainWindow.title("Tournament Management System")
+    MainWindow.geometry("400x400")
+
+    #Create a drop down menu
+
+    Options = ["Option 1", "Option 2", "Option 3", "Option 4"]
+    DropDown = tk.OptionMenu(MainWindow, "Select an Option", *Options)
+
+    EntryVar = StringVar()
+    EntryBox = Entry(MainWindow, textvariable=EntryVar)
+    EntryBox.pack()
+
+    RefreshButton = Button(MainWindow, text="Refresh Options", command=RefreshOptions)
+    RefreshButton.pack()
+
+    DropDown.pack()
+
+    MainWindow.mainloop()
 
 Main()
-
