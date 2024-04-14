@@ -1,17 +1,10 @@
 import tkinter as tk
-from tkinter import messagebox, scrolledtext
+from tkinter import messagebox, scrolledtext, ttk
 from PIL import ImageTk, Image
-import db, random, string
-import sqlite3 as sql
+import db, validate as vd, email_recovery as email, functions as fn, sqlite3 as sql
 from idlelib.tooltip import Hovertip
 from tkcalendar import DateEntry
 from time import strftime
-from datetime import datetime
-import smtplib, ssl
-from email.message import EmailMessage
-import validate as vd
-import email_recovery as email
-import functions as fn
 
 # Constants
 MAIN_FONT = ("Arial", 12)
@@ -27,8 +20,8 @@ UNDERLINED_FONT = ("Arial underline", 8)
 connection = sql.connect("dbase.db")
 cursor = connection.cursor()
 db.createTables(cursor)
-db.createConstUser(cursor)
-db.createConstAdmin(cursor)
+db.createConstUser(connection, cursor)
+db.createConstAdmin(connection, cursor)
 
 global isAdmin
 isAdmin = False
@@ -51,13 +44,18 @@ class SamsTournamentsApp(tk.Tk):
         container.grid_rowconfigure(0, weight=1) 
         container.grid_columnconfigure(0, weight=1)
 
+        style = ttk.Style()
+        style.theme_use("clam")
+        style.configure("Toolbutton", background="#E3E2DF", font=LARGE_FONT_BOLD)
+
         self.frames = {}
 
         # Create instances of LoginPage and SignupPage
         for i in (LoginPage, SignupPage, ForgotPasswordPage, DashboardPage, ScoringCalculatorPage, 
                   FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage, RegisterToTournamentPage, 
                   UnregisterFromTournamentPage, UpcomingTournamentsDetailsPage, EditTournamentsPage,
-                  RecoveryTokenPage, ResetPasswordPage, PreviousTournamentsPage, AdvancedDetailsPage):
+                  RecoveryTokenPage, ResetPasswordPage, PreviousTournamentsPage, AdvancedDetailsPage,
+                  PartSettingsPage, AdminSettingsPage):
             frame = i(container, self)
             self.frames[i] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -84,8 +82,12 @@ class LoginPage(tk.Frame):
             allRows = db.getAllRows(cursor, "tbl_Accounts")
             for row in allRows:
                 if Username == row[1]:
+                    print("Yes1")
                     if row[3] == "Admin":
+                        print("Yes2")
                         isAdmin = True
+                    else:
+                        isAdmin = False
             
             # We want to change to the dashboard page and then run the displayAdminButtons function in the DashboardPage class
             controller.show_frame(DashboardPage)
@@ -122,10 +124,10 @@ class LoginPage(tk.Frame):
                     userOrAdmin(Username)
 
             if IsChecked.get() == 1:
-                with open("RememberMe.txt", "w") as file:
+                with open("Text Files/RememberMe.txt", "w") as file:
                     file.write(Username + " " + Password)
             else:
-                with open("RememberMe.txt", "w") as file:
+                with open("Text Files/RememberMe.txt", "w") as file:
                     file.write("")
 
         tk.Frame.__init__(self, parent)
@@ -136,11 +138,11 @@ class LoginPage(tk.Frame):
         Password = tk.StringVar()
         IsChecked = tk.IntVar()
 
-        Username.set("ConstAdmin")
+        Username.set("ConstUser")
         Password.set("Password1")
 
         # Check if there are any details in the Remember Me File, if not set the variables equal to them
-        with open("RememberMe.txt", "r") as file:
+        with open("Text Files/RememberMe.txt", "r") as file:
             for line in file:
                 if line != "":
                     Username.set(line.split()[0])
@@ -168,6 +170,7 @@ class LoginPage(tk.Frame):
         UsernameEntry = tk.Entry(LeftFrame, width=40, textvariable = Username)
         UsernameEntry.pack(padx=10, pady=10)
 
+
         PasswordLabel = tk.Label(LeftFrame, text="Password", bg = "#E3E2DF", font=LARGE_FONT)
         PasswordLabel.pack(padx=10, pady=10)
         PasswordEntry = tk.Entry(LeftFrame, width=40, textvariable = Password, show="*")   
@@ -186,7 +189,7 @@ class LoginPage(tk.Frame):
         # Start adding buttons to the right side 
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
-        ParticipantViewButton = tk.Button(RightFrame, text="Continue: Testing Purposes", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
+        ParticipantViewButton = tk.Button(RightFrame, text="Continue as Guest", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
                                           command = lambda: controller.show_frame(DashboardPage))
         ParticipantViewButton.pack(pady=35)
         ForgotMyPasswordButton = tk.Button(RightFrame, text="Forgot my password", bg = "#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT,
@@ -217,7 +220,6 @@ class SignupPage(tk.Frame):
                 PasswordConfirmEntry.delete(0, "end")
             
             validEmail = False
-            print(vd.emailCheck(Email.get()))
             if vd.emailCheck(Email.get()) == "Valid":
                 validEmail = True
             elif vd.emailCheck(Email.get()) == "Taken":
@@ -356,11 +358,8 @@ class ForgotPasswordPage(tk.Frame):
         RecoveryEmailEntry = tk.Entry(self, width=40, textvariable=RecoveryEmail)
         RecoveryEmailEntry.pack(pady=5)
 
-        SendRecoveryEmailButton = tk.Button(self, text="Send", bg="#E3E2DF", width=8, height=1, command = lambda: email.checkEmail(RecoveryEmail.get(), RecoveryEmailEntry))
+        SendRecoveryEmailButton = tk.Button(self, text="Send", bg="#E3E2DF", width=8, height=1, command = lambda: email.checkEmail(RecoveryEmail.get(), RecoveryEmailEntry, controller, RecoveryTokenPage))
         SendRecoveryEmailButton.pack(pady=5)
-
-        NextButton = tk.Button(self, text="Next", bg="#E3E2DF", width=8, height=1, command=lambda: controller.show_frame(RecoveryTokenPage))
-        NextButton.pack(pady=5)
 
         BackButton = tk.Button(self, text="Back", bg="#E3E2DF", width=8, height=1, command=lambda: fn.frameSwitchGeometry(controller, LoginPage, "1920x1080"))
         BackButton.pack(pady=5)
@@ -417,9 +416,15 @@ class DashboardPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
+        def choosePage():
+            if isAdmin == True:
+                fn.frameSwitchGeometry(controller, AdminSettingsPage, "600x500")
+            else:
+                fn.frameSwitchGeometry(controller, PartSettingsPage, "600x500")
+
         def RefreshLoggedInAs():
             displayLoggedInAs.config(text="Logged in as: {0}".format(loggedinAs))
-            displayLoggedInAs.after(1000, RefreshLoggedInAs)
+            displayLoggedInAs.after(500, RefreshLoggedInAs)
 
         def GoToCreateTournamentPage():
             if isAdmin == True:
@@ -516,9 +521,19 @@ class DashboardPage(tk.Frame):
 
         MainLabelBottom = tk.Label(MiddleFrame, text="Tournaments", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabelBottom.pack(pady=50)
+        
+        settingsicon = tk.PhotoImage(file="Images and Icons/Settings_Icon.png")
+        settingsicon.image = settingsicon
+        SettingsButton = ttk.Button(MiddleFrame, image=settingsicon, style="Toolbutton", takefocus=False,
+                       command=lambda: choosePage())
+        SettingsButton.image = settingsicon
+        SettingsButton.place(relx=0.75, rely=0.97, anchor="center")
 
-        BackButton = tk.Button(MiddleFrame, text="Logout", bg="#E3E2DF", width=20, height=2, font = MAIN_FONT, 
+        leaveicon = tk.PhotoImage(file="Images and Icons/Leave_Icon.png")
+        leaveicon.image = leaveicon
+        BackButton = ttk.Button(MiddleFrame, text="Logout", image=leaveicon, compound="left", style="Toolbutton", takefocus=False,
                                command=lambda: controller.show_frame(LoginPage))
+        BackButton.image = leaveicon
         BackButton.pack(pady=20)
 
         # Add a logged in as label to the very bottom of the window in the middle, this will show the username of the person logged in, should be updated when the user logs in
@@ -526,7 +541,283 @@ class DashboardPage(tk.Frame):
         displayLoggedInAs.pack(side="bottom", pady=20)
 
         RefreshLoggedInAs()
-        
+
+class PartSettingsPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        def changeEmail(DisplayEmailEntry, loggedinAs, email):
+            """Change the email of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.emailCheck(email) == "Valid":
+                db.updateEmail(connection, cursor, [email, UserID])
+                messagebox.showinfo("Email Change", "Your email has been changed successfully.")
+                DisplayEmailEntry.delete(0, "end")
+                DisplayEmailEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The email you entered is invalid.")
+                DisplayEmailEntry.focus()
+
+        def changeGameName(DisplayGameNameEntry, loggedinAs, gameName):
+            """Change the game name of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.lengthCheck(gameName, 20, 1) == "Valid":
+                db.updateGameName(connection, cursor, [gameName, UserID])
+                messagebox.showinfo("Game Name Change", "Your game name has been changed successfully.")
+                DisplayGameNameEntry.delete(0, "end")
+                DisplayGameNameEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The game name you entered is invalid.")
+                DisplayGameNameEntry.focus()
+
+        def changeUsername(DisplayUsernameEntry, loggedinAs, username):
+            """Change the username of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.usernameIsValid(username) == "Valid":
+                db.updateUsername(connection, cursor, [username, UserID])
+                messagebox.showinfo("Username Change", "Your username has been changed successfully.")
+                DisplayUsernameEntry.delete(0, "end")
+                DisplayUsernameEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The username you entered is invalid.")
+                DisplayUsernameEntry.focus()
+
+        def changePassword(DisplayPasswordEntry, loggedinAs, password):
+            """Change the password of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.passwordIsValid(password, password) == "Valid":
+                db.updatePassword(connection, cursor, [password, UserID])
+                messagebox.showinfo("Password Change", "Your password has been changed successfully.")
+                DisplayPasswordEntry.delete(0, "end")
+                DisplayPasswordEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The password you entered is invalid.")
+                DisplayPasswordEntry.focus()
+
+        def searchUser():
+            """Search for user in the database and find their details"""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+
+            allRowsPart = db.getAllRows(cursor, "tbl_Participants")
+            for row in allRowsPart:
+                if row[4] == UserID:
+                    DisplayGameName.set(row[1])
+                    DisplayEmail.set(row[2])
+
+            allRowsMain = db.getAllRows(cursor, "tbl_Accounts")
+            for row in allRowsMain:
+                if row[1] == loggedinAs:
+                    DisplayUsername.set(row[1])
+                    DisplayPassword.set(row[2])
+
+            DisplayEmailEntry.config(state="normal")
+            DisplayGameNameEntry.config(state="normal")
+            DisplayUsernameEntry.config(state="normal")
+            DisplayPasswordEntry.config(state="normal")
+
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        DisplayUsername = tk.StringVar()
+        DisplayGameName = tk.StringVar()
+        DisplayEmail = tk.StringVar()
+        DisplayPassword = tk.StringVar()
+
+        DisplayGameNameLabel = tk.Label(WholeFrame, text="Display Game Name", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayGameNameLabel.place(relx=0.5, rely=0.05, anchor="center")
+        DisplayGameNameEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayGameName, state="disabled")
+        DisplayGameNameEntry.place(relx=0.5, rely=0.095, anchor="center") 
+
+        DisplayUsernameLabel = tk.Label(WholeFrame, text="Display Username", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayUsernameLabel.place(relx=0.5, rely=0.17, anchor="center")
+        DisplayUsernameEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayUsername, state="disabled")
+        DisplayUsernameEntry.place(relx=0.5, rely=0.22, anchor="center")
+
+        DisplayEmailLabel = tk.Label(WholeFrame, text="Display Email", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayEmailLabel.place(relx=0.5, rely=0.295, anchor="center")
+        DisplayEmailEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayEmail, state="disabled")
+        DisplayEmailEntry.place(relx=0.5, rely=0.345, anchor="center")
+
+        DisplayPasswordLabel = tk.Label(WholeFrame, text="Display Password", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayPasswordLabel.place(relx=0.5, rely=0.42, anchor="center")
+        DisplayPasswordEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayPassword, show="*", state="disabled")
+        DisplayPasswordEntry.place(relx=0.5, rely=0.47, anchor="center")
+
+        searchButton = tk.Button(WholeFrame, text="Search", bg="#5D011E", width=10, height=2, fg="white", 
+                                 command=lambda: searchUser())
+        searchButton.place(relx=0.5, rely=0.6, anchor="center")
+        backButton = tk.Button(WholeFrame, text="Back", bg="#5D011E", width=10, height=2, fg="white",
+                               command=lambda: fn.frameSwitchGeometry(controller, DashboardPage, "1920x1080"))
+        backButton.place(relx=0.5, rely=0.7, anchor="center")
+
+        # Construct edit buttons for each field, they will be positioned to the right of the entry fields
+        editGameNameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                       command=lambda: changeGameName(DisplayGameNameEntry, loggedinAs, DisplayGameNameEntry.get()))
+        editGameNameButton.place(relx=0.75, rely=0.095, anchor="center")
+
+        editUsernameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                       command=lambda: changeUsername(DisplayUsernameEntry, loggedinAs, DisplayUsernameEntry.get()))
+        editUsernameButton.place(relx=0.75, rely=0.22, anchor="center")
+
+        editEmailButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                    command=lambda: changeEmail(DisplayEmailEntry, loggedinAs, DisplayEmailEntry.get()))
+        editEmailButton.place(relx=0.75, rely=0.345, anchor="center")
+
+        editPassButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                    command=lambda: changePassword(DisplayPasswordEntry, loggedinAs, DisplayPasswordEntry.get()))
+        editPassButton.place(relx=0.75, rely=0.47, anchor="center")
+
+class AdminSettingsPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        def changeEmail(DisplayEmailEntry, loggedinAs, email):
+            """Change the email of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.emailCheck(email) == "Valid":
+                db.updateEmail(cursor, [email, UserID])
+                messagebox.showinfo("Email Change", "Your email has been changed successfully.")
+                DisplayEmailEntry.delete(0, "end")
+                DisplayEmailEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The email you entered is invalid.")
+                DisplayEmailEntry.focus()
+
+        def changeGameName(DisplayGameNameEntry, loggedinAs, gameName):
+            """Change the game name of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.lengthCheck(gameName, 20, 1) == "Valid":
+                db.updateGameName(cursor, [gameName, UserID])
+                messagebox.showinfo("Game Name Change", "Your game name has been changed successfully.")
+                DisplayGameNameEntry.delete(0, "end")
+                DisplayGameNameEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The game name you entered is invalid.")
+                DisplayGameNameEntry.focus()
+
+        def changeUsername(DisplayUsernameEntry, loggedinAs, username):
+            """Change the username of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.usernameIsValid(username) == "Valid":
+                db.updateUsername(cursor, [username, UserID])
+                messagebox.showinfo("Username Change", "Your username has been changed successfully.")
+                DisplayUsernameEntry.delete(0, "end")
+                DisplayUsernameEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The username you entered is invalid.")
+                DisplayUsernameEntry.focus()
+
+        def changePassword(DisplayPasswordEntry, loggedinAs, password):
+            """Change the password of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.passwordIsValid(password, password) == "Valid":
+                db.updatePassword(cursor, [password, UserID])
+                messagebox.showinfo("Password Change", "Your password has been changed successfully.")
+                DisplayPasswordEntry.delete(0, "end")
+                DisplayPasswordEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The password you entered is invalid.")
+                DisplayPasswordEntry.focus()
+
+        def changeDiscName(DisplayDiscNameEntry, loggedinAs, discName):
+            """Change the discord name of the user in the database."""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+            if vd.lengthCheck(discName, 20, 1) == "Valid":
+                db.updateDiscordName(cursor, [discName, UserID])
+                messagebox.showinfo("Discord Name Change", "Your discord name has been changed successfully.")
+                DisplayDiscNameEntry.delete(0, "end")
+                DisplayDiscNameEntry.config(state="disabled")
+            else:
+                messagebox.showerror("Error", "The discord name you entered is invalid.")
+                DisplayDiscNameEntry.focus()
+
+        def searchUser():
+            """Search for user in the database and find their details"""
+            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = UserID[0]
+
+            allRowsPart = db.getAllRows(cursor, "tbl_Administrators")
+            for row in allRowsPart:
+                if row[6] == UserID:
+                    DisplayDiscName.set(row[1])
+                    DisplayEmail.set(row[5])
+
+            allRowsMain = db.getAllRows(cursor, "tbl_Accounts")
+            for row in allRowsMain:
+                if row[1] == loggedinAs:
+                    DisplayUsername.set(row[1])
+                    DisplayPassword.set(row[2])
+
+            DisplayEmailEntry.config(state="normal")
+            DisplayDiscNameEntry.config(state="normal")
+            DisplayUsernameEntry.config(state="normal")
+            DisplayPasswordEntry.config(state="normal")
+
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        DisplayDiscName = tk.StringVar()
+        DisplayUsername = tk.StringVar()
+        DisplayPassword = tk.StringVar()
+        DisplayEmail = tk.StringVar()
+
+        DisplayDiscNameLabel = tk.Label(WholeFrame, text="Display Discord Name", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayDiscNameLabel.place(relx=0.5, rely=0.05, anchor="center")
+        DisplayDiscNameEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayDiscName, state="disabled")
+        DisplayDiscNameEntry.place(relx=0.5, rely=0.095, anchor="center")
+
+        DisplayUsernameLabel = tk.Label(WholeFrame, text="Display Username", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayUsernameLabel.place(relx=0.5, rely=0.17, anchor="center")
+        DisplayUsernameEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayUsername, state="disabled")
+        DisplayUsernameEntry.place(relx=0.5, rely=0.22, anchor="center")
+
+        DisplayEmailLabel = tk.Label(WholeFrame, text="Display Email", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayEmailLabel.place(relx=0.5, rely=0.295, anchor="center")
+        DisplayEmailEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayEmail, state="disabled")
+        DisplayEmailEntry.place(relx=0.5, rely=0.345, anchor="center")
+
+        DisplayPasswordLabel = tk.Label(WholeFrame, text="Display Password", bg="#E3E2DF", font=MAIN_FONT)
+        DisplayPasswordLabel.place(relx=0.5, rely=0.42, anchor="center")
+        DisplayPasswordEntry = tk.Entry(WholeFrame, width=40, textvariable=DisplayPassword, show="*", state="disabled")
+        DisplayPasswordEntry.place(relx=0.5, rely=0.47, anchor="center")
+
+        searchButton = tk.Button(WholeFrame, text="Search", bg="#5D011E", width=10, height=2, fg="white",
+                                command=lambda: searchUser())
+        searchButton.place(relx=0.5, rely=0.6, anchor="center")
+
+        backButton = tk.Button(WholeFrame, text="Back", bg="#5D011E", width=10, height=2, fg="white",
+                              command=lambda: fn.frameSwitchGeometry(controller, DashboardPage, "1920x1080"))
+        backButton.place(relx=0.5, rely=0.7, anchor="center")
+
+        # Construct edit buttons for each field, they will be positioned to the right of the entry fields
+        editDiscNameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                      command=lambda: changeDiscName(DisplayDiscNameEntry, loggedinAs, DisplayDiscNameEntry.get()))
+        editDiscNameButton.place(relx=0.75, rely=0.095, anchor="center")
+
+        editUsernameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                     command=lambda: changeUsername(DisplayUsernameEntry, loggedinAs, DisplayUsernameEntry.get()))
+        editUsernameButton.place(relx=0.75, rely=0.22, anchor="center")
+
+        editEmailButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                  command=lambda: changeEmail(DisplayEmailEntry, loggedinAs, DisplayEmailEntry.get()))
+        editEmailButton.place(relx=0.75, rely=0.345, anchor="center")
+
+        editPasswordButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
+                                     command=lambda: changePassword(DisplayPasswordEntry, loggedinAs, DisplayPasswordEntry.get()))
+        editPasswordButton.place(relx=0.75, rely=0.47, anchor="center")
+
 class RegisterToTournamentPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
@@ -542,23 +833,36 @@ class RegisterToTournamentPage(tk.Frame):
                 for row in allRows:
                     if row[1] == TournamentName:
                         TournamentID = row[0]
-
-                # Now we need to write the team to the database
-                # First lets find the ParticipantGameName of the user logged in (Will be used as Team Captain)
+                
                 UserID = db.getUserID(cursor, loggedinAs)
                 UserID = UserID[0]
+
+                # First we need to check if the tournament is full if it is, place the team on the waiting list
+                if db.checkIfTournamentFull(cursor, TournamentID) == True:
+                    TeamCaptain = db.getParticipantGameName(cursor, UserID)
+                    TeamCaptain = TeamCaptain[0]
+                    db.insertToWaitingList(connection, cursor, [TeamName, TeamCaptain, TeamMember2, TeamMember3, TeamCoach, "Waiting", TournamentID])
+                    messagebox.showinfo("Success", "Your team has been successfully placed on the waiting list.")
+                    SelectedTournament.set("Please Select")
+                    TeamNameEntry.delete(0, "end")
+                    TeamMember2Entry.delete(0, "end")
+                    TeamMember3Entry.delete(0, "end")
+                    TeamCoachEntry.delete(0, "end")
+                    return
+
+                # Now we need to write the team to the database
 
                 try:
                     TeamCaptain = db.getParticipantGameName(cursor, UserID)
                     TeamCaptain = TeamCaptain[0]
-                    db.insertToTeamsTable(connection, cursor, [TeamName, TeamCaptain, TeamMember2, TeamMember3, TeamCoach, TournamentID])
+                    db.insertToTeamsTable(connection, cursor, [TeamName, TeamCaptain, TeamMember2, TeamMember3, TeamCoach, "Participating", TournamentID])
                     messagebox.showinfo("Success", "Your team has been successfully registered to the tournament!")
                     SelectedTournament.set("Please Select")
                     TeamNameEntry.delete(0, "end")
                     TeamMember2Entry.delete(0, "end")
                     TeamMember3Entry.delete(0, "end")
                     TeamCoachEntry.delete(0, "end")
-                except TypeError:
+                except TypeError: # If the user is an admin they should not be able to register
                     messagebox.showerror("Error", "You must be a participant to register to a tournament.")
                     controller.show_frame(DashboardPage)
         
@@ -591,7 +895,6 @@ class RegisterToTournamentPage(tk.Frame):
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
 
-        # Start creating fields for entry of information
         MainLabel = tk.Label(LeftFrame, text="Register To Tournament", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -654,8 +957,7 @@ class RegisterToTournamentPage(tk.Frame):
                                         command = lambda: RegisterToTournament(SelectedTournament.get(), TeamName.get(), TeamMember2.get(), TeamMember3.get(), TeamCoach.get()))
         RegisterButton.pack(pady=5)
         
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         # Add guidance to right hand panel
         RegisterToTournamentExplanation = tk.Label(RightFrame, text="Register To Tournament Explanation", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
@@ -684,21 +986,17 @@ class ScoringCalculatorPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
-        # Create StringVars for User Entry
         TeamPlacement = tk.StringVar()
         TeamKills = tk.StringVar()
 
-        # Create a main frame
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
-        # Create a frame for the left side of the window and right side of the window
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF") 
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
         RightFrame.pack(side="right", fill="both", expand=True)
         
-        # Start creating fields for entry of information
         MainLabel = tk.Label(LeftFrame, text="Scoring Calculator", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         MainLabel.pack(pady=20)
 
@@ -706,18 +1004,19 @@ class ScoringCalculatorPage(tk.Frame):
         TeamPlacementLabel.pack(pady=20)
         TeamPlacementEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamPlacement)
         TeamPlacementEntry.pack(pady=20)
+        fn.CreateToolTip(TeamPlacementEntry, "Enter the placement your team got in the game. (1-20)")
 
         TeamKillsLabel = tk.Label(LeftFrame, text="Team Kills", bg = "#E3E2DF", font=LARGE_FONT)
         TeamKillsLabel.pack(pady=20)
         TeamKillsEntry = tk.Entry(LeftFrame, width=30, textvariable=TeamKills)
         TeamKillsEntry.pack(pady=20)
+        fn.CreateToolTip(TeamKillsEntry, "Enter the number of kills your team got in the game.")
 
         CalculateTotalScore = tk.Button(LeftFrame, text="Calculate!", bg="#5D011E", width=20, height=2, fg = "white", font = MAIN_FONT, 
                                         command = lambda: fn.calculateScore(TeamPlacement.get(), TeamKills.get(), TeamPlacementEntry, TeamKillsEntry))
         CalculateTotalScore.pack(pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT, command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         # Start adding an explanation for the points scoring on the right hand side
         ScoringCalculatorExplanation = tk.Label(RightFrame, text="Scoring Calculator Explanation", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
@@ -745,11 +1044,9 @@ class FAQandRulesPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
         
-        # Create a main frame
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
-        #Create a frame for the left side of the window and right side of the window
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
 
@@ -801,8 +1098,11 @@ class FAQandRulesPage(tk.Frame):
         Summary = tk.Label(RightFrame, text="If you have any further questions \n please contact an admin on Discord.", bg = "#5D011E", font=MEDIUM_FONT_BOLD, fg = "white")
         Summary.pack(pady=20)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", font = MAIN_FONT, width=20, height=2, command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=30)
+        backIcon = tk.PhotoImage(file="Images and Icons/Leave_Icon.png")
+        BackButton = ttk.Button(LeftFrame, image = backIcon, compound="left", style="Toolbutton", takefocus=False,
+                                command=lambda: controller.show_frame(DashboardPage))
+        BackButton.image = backIcon
+        BackButton.place(relx=0.05, rely=0.03, anchor="center")
 
 class CreateAnAdminPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -810,8 +1110,10 @@ class CreateAnAdminPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
 
         def CreateAdmin(AdminDiscNameStore, AdminFirstNameStore, AdminSurnameStore, AdminDOBStore, AdminEmailStore, AdminUsernameStore, AdminPasswordStore, AdminPasswordConfirmStore):
+            """Create an admin account."""
     
             def SignupConfirmation():
+                """Confirmation of the admin being created."""
                 db.insertToAccountsTable(connection, cursor, [AdminUsernameStore, AdminPasswordStore, "Admin"])
                 UserIDForeignKey = db.getUserID(cursor, AdminUsernameStore)
                 db.insertToAdministratorsTable(connection, cursor, [AdminDiscNameStore, AdminFirstNameStore, AdminSurnameStore, AdminDOBStore, AdminEmailStore, UserIDForeignKey[0]])
@@ -848,9 +1150,9 @@ class CreateAnAdminPage(tk.Frame):
                 validSurname = True
             
             validEmail = False
-            if vd.emailIsValid(AdminEmailStore) == "Valid":
+            if vd.emailCheck(AdminEmailStore) == "Valid":
                 validEmail = True
-            elif vd.emailIsValid(AdminEmailStore) == "Taken":
+            elif vd.emailCheck(AdminEmailStore) == "Taken":
                 messagebox.showerror("Error", "Email is already in use.")
                 AdminEmailEntry.focus()
             else:
@@ -914,11 +1216,13 @@ class CreateAnAdminPage(tk.Frame):
         AdminDOBLabel.pack(padx=10)
         AdminDOBCalendar = DateEntry(LeftFrame, selectmode="day", year=2008, month=1, day=1, date_pattern="dd-mm-yyyy")
         AdminDOBCalendar.pack(padx=10, pady=10)
+        fn.CreateToolTip(AdminDOBCalendar, "Select your date of birth, use the calendar provided to select the date")
 
         AdminEmailLabel = tk.Label(LeftFrame, text="Email", bg = "#E3E2DF", font=MAIN_FONT)
         AdminEmailLabel.pack(padx=10)
         AdminEmailEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminEmail)
         AdminEmailEntry.pack(padx=10, pady=10)
+        fn.CreateToolTip(AdminEmailEntry, "Enter your email address, e.g samstournaments@gmail.com")
 
         AdminUsernameLabel = tk.Label(LeftFrame, text="Username", bg = "#E3E2DF", font=MAIN_FONT)
         AdminUsernameLabel.pack(padx=10)
@@ -934,6 +1238,7 @@ class CreateAnAdminPage(tk.Frame):
         AdminPasswordConfirmLabel.pack(padx=10)
         AdminPasswordConfirmEntry = tk.Entry(LeftFrame, width=40, textvariable=AdminPasswordConfirm, show="*")
         AdminPasswordConfirmEntry.pack(padx=10, pady=10)
+        fn.CreateToolTip(AdminPasswordConfirmEntry, "Confirm your password, must match the password entered above")
 
         ShowPassword = tk.Checkbutton(LeftFrame, text="Show Password", bg = "#E3E2DF", font=MAIN_FONT, command=fn.show_and_hide(AdminPasswordEntry, AdminPasswordConfirmEntry))
         ShowPassword.pack(pady=10)
@@ -941,9 +1246,8 @@ class CreateAnAdminPage(tk.Frame):
         CreateAdminButton = tk.Button(LeftFrame, text="Create Admin", bg="#5D011E", fg = "white", width=20, height=2,
                                       command = lambda: CreateAdmin(AdminDiscName.get(), AdminFirstName.get(), AdminSurname.get(), AdminDOBCalendar.get(), AdminEmail.get(), AdminUsername.get(), AdminPassword.get(), AdminPasswordConfirm.get()))
         CreateAdminButton.pack(pady=5)
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, 
-                               command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
+        
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         # Start explaining the rules for creating an admin on the right hand side
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
@@ -981,6 +1285,8 @@ class CreateATournamentPage(tk.Frame):
                 TournamentDateCalendar.set_date("01-01-2024")
                 TournamentTimeEntry.delete(0, "end")
                 TournamentDescriptionEntry.delete("1.0", tk.END)
+                NumGamesVar.set(NumGamesList[0])
+                MaxTeamsVar.set(MaxTeamsList[0])
             
             validName = False
             if vd.lengthCheck(TournamentName, 20, 1) == False:
@@ -1014,15 +1320,12 @@ class CreateATournamentPage(tk.Frame):
             if validTime and validName and tournamentNameTaken and descValid:
                 WriteToDatabase()
 
-        # Create StringVars for User Entry
         TournamentName = tk.StringVar()
         TournamentTime = tk.StringVar()
 
-        # Create a main frame
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
         
-        # Create a frame for the left side of the window and right side of the window
         LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
         LeftFrame.pack(side="left", fill="both", expand=True)
         RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
@@ -1033,9 +1336,9 @@ class CreateATournamentPage(tk.Frame):
 
         editicon = tk.PhotoImage(file="Images and Icons/updatedicon.png")
         editicon.image = editicon
-        EditButton = tk.Button(LeftFrame, image=editicon, compound="left", bg = "#E3E2DF",
+        EditButton = ttk.Button(LeftFrame, image=editicon, style="Toolbutton", takefocus=False,
                                command=lambda: controller.show_frame(EditTournamentsPage))
-        EditButton.place(x=625, y=25)
+        EditButton.place(relx=0.72, rely=0.04, anchor="center")
 
         TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentNameLabel.pack(padx=10)
@@ -1046,11 +1349,13 @@ class CreateATournamentPage(tk.Frame):
         TournamentDateLabel.pack(padx=10)
         TournamentDateCalendar = DateEntry(LeftFrame, selectmode="day", year=2024, month=1, day=1, date_pattern="dd-mm-yyyy")
         TournamentDateCalendar.pack(padx=10, pady=5)
+        fn.CreateToolTip(TournamentDateCalendar, "Select the date of the tournament, use the calendar provided to select the date")
 
         TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentTimeLabel.pack(padx=10)
         TournamentTimeEntry = tk.Entry(LeftFrame, width=30, textvariable=TournamentTime)
         TournamentTimeEntry.pack(padx=10, pady=10)
+        fn.CreateToolTip(TournamentTimeEntry, "Enter the time of the tournament, format: HH:MM")
 
         TournamentDescriptionLabel = tk.Label(LeftFrame, text="Tournament Description", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentDescriptionLabel.pack(padx=10)
@@ -1061,26 +1366,24 @@ class CreateATournamentPage(tk.Frame):
         MaxTeamsLabel.pack(padx=10)
 
         MaxTeamsList = ["20", "40", "80"]
-        MaxTeams = tk.StringVar()
-        MaxTeams.set(MaxTeamsList[0])
-        MaxTeamsDrop = tk.OptionMenu(LeftFrame, MaxTeams, *MaxTeamsList)
+        MaxTeamsVar = tk.StringVar()
+        MaxTeamsVar.set(MaxTeamsList[0])
+        MaxTeamsDrop = tk.OptionMenu(LeftFrame, MaxTeamsVar, *MaxTeamsList)
         MaxTeamsDrop.pack(pady=10)
 
         NumGamesLabel = tk.Label(LeftFrame, text="Number of Games", bg = "#E3E2DF", font=MAIN_FONT)
         NumGamesLabel.pack(padx=10)
         NumGamesList = ["4", "6", "8"]
-        NumGames = tk.StringVar()
-        NumGames.set(NumGamesList[0])
-        NumGamesDrop = tk.OptionMenu(LeftFrame, NumGames, *NumGamesList)
+        NumGamesVar = tk.StringVar()
+        NumGamesVar.set(NumGamesList[0])
+        NumGamesDrop = tk.OptionMenu(LeftFrame, NumGamesVar, *NumGamesList)
         NumGamesDrop.pack(pady=10)
 
         CreateTournamentButton = tk.Button(LeftFrame, text="Create Tournament", bg="#5D011E", fg = "white", width=20, height=2, 
-                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.get(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END), MaxTeams.get(), NumGames.get()))
+                                           command = lambda: CreateTournament(TournamentName.get(), TournamentDateCalendar.get(), TournamentTime.get(), TournamentDescriptionEntry.get("1.0", tk.END), MaxTeamsVar.get(), NumGamesVar.get()))
         CreateTournamentButton.pack(pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", width=20, height=2, fg="white",
-                               command = lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         # Start adding an explanation for the points scoring on the right hand side
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
@@ -1105,21 +1408,6 @@ class EditTournamentsPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
-
-        def RefreshTournaments():
-            TournamentsUpdated = []
-            allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
-
-            for row in allTournaments:
-                TournamentsUpdated.append(row[1])
-
-            menu = TournamentsAvailable["menu"]
-            menu.delete(0, "end")
-
-            for tournament in TournamentsUpdated:
-                menu.add_command(label=tournament, command=lambda value=tournament: SelectedTournament.set(value))
-
-            self.after(3000, RefreshTournaments)
 
         def LoadDetails(tournament):
             # First lets check if the user has selected a tournament
@@ -1225,9 +1513,9 @@ class EditTournamentsPage(tk.Frame):
             TournamentsAvailable.config(width=20, height=1, font = MAIN_FONT)
             TournamentsAvailable.pack(pady=10)
 
-        LoadDetailsButton = tk.Button(LeftFrame, text="Load Details", bg="#5D011E", fg="white", width=20, height=2, font=MAIN_FONT,
+        LoadDetailsButton = tk.Button(LeftFrame, text="Load Details", bg="#5D011E", fg="white", width=20, height=2,
                                       command = lambda: LoadDetails(SelectedTournament.get()))
-        LoadDetailsButton.pack(pady=5)
+        LoadDetailsButton.pack(pady=10)
 
         TournamentName = tk.StringVar()
         TournamentTime = tk.StringVar()
@@ -1241,6 +1529,7 @@ class EditTournamentsPage(tk.Frame):
         TournamentDateLabel.pack(padx=10)
         TournamentDateCalendar = DateEntry(LeftFrame, selectmode="day", year=2024, month=1, day=1, date_pattern="dd-mm-yyyy")
         TournamentDateCalendar.pack(padx=10, pady=5)
+        fn.CreateToolTip(TournamentDateCalendar, "Select the date of the tournament, use the calendar provided to select the date")
 
         TournamentTimeLabel = tk.Label(LeftFrame, text="Tournament Time", bg = "#E3E2DF", font=MAIN_FONT)
         TournamentTimeLabel.pack()
@@ -1256,25 +1545,23 @@ class EditTournamentsPage(tk.Frame):
         MaxTeams = tk.StringVar()
         MaxTeams.set(MaxTeamsList[0])
         MaxTeamsLabel = tk.Label(LeftFrame, text="Max Teams", bg = "#E3E2DF", font=MAIN_FONT)
-        MaxTeamsLabel.pack()
+        MaxTeamsLabel.pack(pady=5)
         MaxTeamsDrop = tk.OptionMenu(LeftFrame, MaxTeams, *MaxTeamsList)
         MaxTeamsDrop.pack()
 
         NumGamesLabel = tk.Label(LeftFrame, text="Number of Games", bg = "#E3E2DF", font=MAIN_FONT)
-        NumGamesLabel.pack(padx=10)
+        NumGamesLabel.pack(padx=10, pady=5)
         NumGamesList = ["4", "6", "8"]
         NumGames = tk.StringVar()
         NumGames.set(NumGamesList[0])
         NumGamesDrop = tk.OptionMenu(LeftFrame, NumGames, *NumGamesList)
-        NumGamesDrop.pack()
+        NumGamesDrop.pack(pady=5)
 
-        CommitChangesButton = tk.Button(LeftFrame, text="Commit Changes", fg="white", bg="#5D011E", width=20, height=2, font=MAIN_FONT,
+        CommitChangesButton = tk.Button(LeftFrame, text="Commit Changes", fg="white", bg="#5D011E", width=20, height=2,
                                         command=lambda: CommitChanges(SelectedTournament.get()))
-        CommitChangesButton.pack(padx=10)
+        CommitChangesButton.pack(padx=10, pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
-                                 command=lambda: controller.show_frame(CreateATournamentPage))
-        BackButton.pack(pady=5)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         # Now lets use the right hand panel to create a delete tournament section
         DeleteTournamentLabel = tk.Label(RightFrame, text="Delete Tournament", bg = "#5D011E", font=VERY_LARGE_FONT, fg = "white")
@@ -1287,12 +1574,37 @@ class EditTournamentsPage(tk.Frame):
                                            command = lambda: DeleteTournament(SelectedTournament.get()))
         DeleteTournamentButton.pack(pady=5)
 
-        RefreshTournaments()
+        fn.newCheckPastFuture(self, "all", TournamentsAvailable, SelectedTournament)
 
 class UnregisterFromTournamentPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
+        
+        def FromWaitingList(TournamentName):
+            # First lets the number of teams registered to the tournament with a status of "Waiting"
+            allTeams = db.getAllRows(cursor, "tbl_Teams")
+            for row in allTeams:
+                if TournamentName == db.getTournamentName(cursor, row[7])[0]:
+                    if row[6] == "Waiting":
+                        TeamID = row[0]
+                        TeamName = db.getTeamName(cursor, TeamID)
+                        TeamName = TeamName[0]
+                        break
+            
+            # If there are no teams on the waiting list, we can return
+            if TeamID == None:
+                return
+            
+            # Lets add the team to the tournament
+            db.updateTeamStatus(connection, cursor, ["Participating", TeamID])
+            TeamCaptainName = db.getTeamCaptainfromTeamID(cursor, TeamID)
+            TeamCaptainName = TeamCaptainName[0]
+            TeamCaptainUserID = db.getUserIDfromTeamCaptain(cursor, TeamCaptainName)
+            TeamCaptainUserID = TeamCaptainUserID[0]
+            TeamCaptainEmail = db.getEmailfromUserID(cursor, TeamCaptainUserID)
+            TeamCaptainEmail = TeamCaptainEmail[0]
+            email.sendParticipatingEmail(TeamName, TournamentName, TeamCaptainEmail)
 
         def UnregisterFromTournament(TournamentName):
             # First lets check if the user has selected a tournament
@@ -1309,7 +1621,7 @@ class UnregisterFromTournamentPage(tk.Frame):
                 GameName = GameName[0]
                 for row in allTeams:
                     if GameName in row[2]:
-                        if TournamentName == db.getTournamentName(cursor, row[6])[0]:
+                        if TournamentName == db.getTournamentName(cursor, row[7])[0]:
                             TeamID = row[0]
                             break
             except TypeError:
@@ -1326,6 +1638,7 @@ class UnregisterFromTournamentPage(tk.Frame):
                 messagebox.showinfo("Unregister", "You have unregistered your team from the tournament successfully!")
                 SelectedTournament.set("Please Select")
                 FindRegisteredTo()
+                FromWaitingList(TournamentName)
 
         def FindRegisteredTo():
             # First we need to find the UserID of the current user
@@ -1343,7 +1656,7 @@ class UnregisterFromTournamentPage(tk.Frame):
                 # Check if the users game name is in the team
                 if GameName in row[2]:
                     # Now we need to find the tournament name
-                    TournamentName = db.getTournamentName(cursor, row[6])
+                    TournamentName = db.getTournamentName(cursor, row[7])
                     RegisteredToTournamentsUpdated.append(TournamentName[0])
 
             menu = ChooseATournament["menu"]
@@ -1390,9 +1703,7 @@ class UnregisterFromTournamentPage(tk.Frame):
                                      command=lambda: UnregisterFromTournament(SelectedTournament.get()))
         UnregisterButton.pack(pady=5)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg="white", width=20, height=2, font = MAIN_FONT, 
-                               command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=20)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
 class UpcomingTournamentsDetailsPage(tk.Frame):
     def __init__(self, parent, controller):
@@ -1490,9 +1801,7 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
                                                command=lambda: SelectedTournamentDetails(SelectedTournament.get()))
         SeeTournamentDetailsButton.pack(pady=20)
 
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", font=MAIN_FONT, width=20, height=2, 
-                               command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
         TournamentDetailsLabel.pack(pady=30)
@@ -1583,10 +1892,7 @@ class PreviousTournamentsPage(tk.Frame):
                                           command=lambda: controller.show_frame(AdvancedDetailsPage))
         AdvancedDetailsButton.pack(pady=5)
         
-        BackButton = tk.Button(LeftFrame, text="Back", bg="#5D011E", fg = "white", font=MAIN_FONT, width=20, height=2,
-                               command=lambda: controller.show_frame(DashboardPage))
-        BackButton.pack(pady=5)
-
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
         fn.newCheckPastFuture(self, "past", ChooseATournamentDrop, SelectedTournament)
 
 class AdvancedDetailsPage(tk.Frame):
@@ -1599,9 +1905,8 @@ class AdvancedDetailsPage(tk.Frame):
 
         ComingSoonLabel = tk.Label(WholeFrame, text="Coming Soon", bg = "#E3E2DF", font=VERY_LARGE_FONT)
         ComingSoonLabel.pack(pady=20)
-        BackButton = tk.Button(WholeFrame, text="Back", bg="#5D011E", fg = "white", font=MAIN_FONT, width=20, height=2,
-                                 command=lambda: controller.show_frame(PreviousTournamentsPage))
-        BackButton.pack(pady=5)
+        
+        fn.makeBackButton(WholeFrame, PreviousTournamentsPage, controller)
 
 # Create an instance of the SamsTournamentsApp class and start the application
 app = SamsTournamentsApp()

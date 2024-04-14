@@ -10,7 +10,7 @@ import functions as fn
 connection = sql.connect("dbase.db")
 cursor = connection.cursor()
 
-def checkEmail(receiver_email, RecoveryEmailEntry):
+def checkEmail(receiver_email, RecoveryEmailEntry, controller, page):
     """Check if the email entered is associated with an account."""
     # Check if the email is in either the administrator or participant table
     allAdminRows = db.getAllRows(cursor, "tbl_Administrators")
@@ -32,9 +32,9 @@ def checkEmail(receiver_email, RecoveryEmailEntry):
         messagebox.showerror("Error", "The email you entered is not associated with any account.")
         RecoveryEmailEntry.focus()
     else:
-        sendEmail(receiver_email, RecoveryEmailEntry)
+        sendEmail(receiver_email, RecoveryEmailEntry, controller, page)
 
-def sendEmail(receiver_email, RecoveryEmailEntry):
+def sendEmail(receiver_email, RecoveryEmailEntry, controller, page):
 
     """Send an email to the user with a recovery token."""
     port = 465
@@ -62,9 +62,36 @@ def sendEmail(receiver_email, RecoveryEmailEntry):
             server.sendmail(sender_email, receiver_email, em.as_string())
             messagebox.showinfo("Success", "An email has been sent to you with a recovery token.")
             RecoveryEmailEntry.delete(0, "end")
+            controller.show_frame(page)
     except:
         messagebox.showerror("Error", "Email could not be sent, ensure you have entered a valid email address.")
         RecoveryEmailEntry.focus()
+
+def sendParticipatingEmail(TeamName, TournamentName, receiver_email):
+    """Send an email telling the team captain their team is now participating."""
+    port = 465
+    smtp_server = "smtp.gmail.com"
+    sender_email = "samstournaments@gmail.com"
+    password = "dzui zaka oxqj juvm"
+
+    subject = "Sams Tournaments: Team Participation"
+    body = """
+    Your team, {0}, is now participating in the tournament, {1}.
+    """.format(TeamName, TournamentName)
+
+    em = EmailMessage()
+    em["From"] = sender_email
+    em["To"] = receiver_email
+    em["Subject"] = subject
+    em.set_content(body)
+
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP_SSL(smtp_server, port, context=context) as server:
+            server.login(sender_email, password)
+            server.sendmail(sender_email, receiver_email, em.as_string())
+    except:
+        messagebox.showerror("Error", "Email could not be sent, ensure you have entered a valid email address.")
 
 def checkToken(token, RecoveryTokenEntry, controller, page):
     """Check if the token entered matches the generated token."""

@@ -41,6 +41,7 @@ def createtbl_Teams(cursor: sql.Cursor):
         TeamMember2 VARCHAR(20) NOT NULL,
         TeamMember3 VARCHAR(20) NOT NULL,
         TeamCoach VARCHAR(20),
+        Status VARCHAR(15),
         TournamentID INTEGER,
         FOREIGN KEY (TeamCaptainName) REFERENCES tbl_Participants(ParticipantID),
         FOREIGN KEY (TournamentID) REFERENCES tbl_Tournaments(TournamentID)
@@ -87,7 +88,7 @@ def insertToParticipantsTable(connection, cursor: sql.Cursor, data: list):
 
 def insertToTeamsTable(connection, cursor: sql.Cursor, data: list):
     """Insert data into the tbl_Teams table."""
-    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainName, TeamMember2, TeamMember3, TeamCoach, TournamentID) VALUES(?, ?, ?, ?, ?, ?)"
+    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainName, TeamMember2, TeamMember3, TeamCoach, Status, TournamentID) VALUES(?, ?, ?, ?, ?, ?, ?)"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -175,7 +176,7 @@ def getParticipantGameName(cursor: sql.Cursor, UserID: int):
     cursor.execute(sql)
     return cursor.fetchone()
 
-def createConstUser(cursor: sql.Cursor):
+def createConstUser(connection, cursor: sql.Cursor):
     """Check if the user already exists, if not create a constant user."""
     sql = "SELECT * FROM tbl_Accounts WHERE Username = 'ConstUser' AND Password = 'Password1'"
     cursor.execute(sql)
@@ -185,15 +186,84 @@ def createConstUser(cursor: sql.Cursor):
         UserID = UserID[0]
         insertToParticipantsTable(connection, cursor, ["ConstUserGameName", "woodyhenderson@hotmail.com", "Male", UserID])
 
-def createConstAdmin(cursor: sql.Cursor):
+def createConstAdmin(connection, cursor: sql.Cursor):
     """Check if the admin already exists, if not create a constant admin."""
-    sql = "SELECT * FROM tbl_Accounts WHERE Username = 'admin' AND Password = 'admin'"
+    sql = "SELECT * FROM tbl_Accounts WHERE Username = 'ConstAdmin' AND Password = 'Password1'"
     cursor.execute(sql)
     if cursor.fetchone() == None:
         insertToAccountsTable(connection, cursor, ["ConstAdmin", "Password1", "Admin"])
         AdminID = getUserID(cursor, "ConstAdmin")
         AdminID = AdminID[0]
         insertToAdministratorsTable(connection, cursor, ["Admin", "Admin", "Admin", "01/01/2000", "samstournaments@gmail.com", AdminID])
+
+def updateEmail(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Participants SET ParticipantEmail = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def updateGameName(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Participants SET ParticipantGameName = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def updatePassword(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Accounts SET Password = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def getEmailfromUsername(cursor: sql.Cursor, username: str):
+    sql = f"SELECT ParticipantEmail FROM tbl_Participants WHERE ParticipantGameName = '{username}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+def updateDiscordName(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Administrators SET AdminDiscName = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def updateUsername(connection, cursor: sql.Cursor, data: list):
+    sql = f"UPDATE tbl_Accounts SET Username = ? WHERE UserID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def checkIfTournamentFull(cursor: sql.Cursor, TournamentID: int):
+    sql = f"SELECT COUNT(TeamID) FROM tbl_Teams WHERE TournamentID = {TournamentID}"
+    # If the number of teams in the tournament is equal to the max number of teams, return True
+    cursor.execute(sql)
+    if cursor.fetchone()[0] == getSpecificRows(cursor, "tbl_Tournaments", f"TournamentID = {TournamentID}")[5]:
+        return True
+    else:
+        return False
+
+def insertToWaitingList(connection, cursor: sql.Cursor, data: list):
+    """Insert a team into the tbl_Teams table, with a status of 'Waiting'."""
+    sql = f"INSERT INTO tbl_Teams(TeamName, TeamCaptainName, TeamMember2, TeamMember3, TeamCoach, Status, TournamentID) VALUES(?, ?, ?, ?, ?, ?, ?)"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def updateTeamStatus(connection, cursor: sql.Cursor, data: list):
+    """Update the status of a team."""
+    sql = f"UPDATE tbl_Teams SET Status = ? WHERE TeamID = ?"
+    cursor.execute(sql, data)
+    connection.commit()
+
+def getTeamCaptainfromTeamID(cursor: sql.Cursor, TeamID: int):
+    """Get the team captain name from a team ID."""
+    sql = f"SELECT TeamCaptainName FROM tbl_Teams WHERE TeamID = {TeamID}"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+def getUserIDfromTeamCaptain(cursor: sql.Cursor, TeamCaptainName: str):
+    """Get the UserID of a team captain."""
+    sql = f"SELECT UserID FROM tbl_Participants WHERE ParticipantGameName = '{TeamCaptainName}'"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+def getEmailfromUserID(cursor: sql.Cursor, UserID: int):
+    """Get the email of a user from their UserID."""
+    sql = f"SELECT ParticipantEmail FROM tbl_Participants WHERE UserID = {UserID}"
+    cursor.execute(sql)
+    return cursor.fetchone()
 
 connection = sql.connect("dbase.db")
 cursor = connection.cursor()
