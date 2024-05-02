@@ -1,4 +1,4 @@
-from tkcalendar import Calendar, DateEntry
+from tkcalendar import Calendar
 from tkinter import *
 from datetime import datetime
 

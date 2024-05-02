@@ -6,13 +6,17 @@ cursor = connection.cursor()
     
 def usernameIsValid(Username):
     """"Validates the username, no longer than 15chars, no shorter than 6chars and no spaces or special characters."""
-    validUsername = False
-    if len(Username) <= 15 and len(Username) >= 6:
-        if any(i.isspace() for i in Username):
+    specialChars = ["!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "-", "_", "+", "=", "[", "]",
+                     "{", "}", ";", ":", "'", '"', ",", "<", ">", ".", "/", "?", "|", "`", "~"]
+    validUsername = True
+    for char in Username:
+        if char in specialChars:
             validUsername = False
-        else:
-            validUsername = True
-    else:
+            break
+    
+    if len(Username) > 15 or len(Username) < 6:
+        validUsername = False
+    elif " " in Username:
         validUsername = False
 
     takenUsername = False

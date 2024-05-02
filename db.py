@@ -43,7 +43,7 @@ def createtbl_Teams(cursor: sql.Cursor):
         TeamCoach VARCHAR(20),
         Status VARCHAR(15),
         TournamentID INTEGER,
-        FOREIGN KEY (TeamCaptainName) REFERENCES tbl_Participants(ParticipantID),
+        FOREIGN KEY (TeamCaptainName) REFERENCES tbl_Participants(ParticipantGameName),
         FOREIGN KEY (TournamentID) REFERENCES tbl_Tournaments(TournamentID)
         );'''
     cursor.execute(sql)
@@ -118,7 +118,7 @@ def getUserID(cursor: sql.Cursor, username: str):
 
 def updateTournamentDetails(connection, cursor: sql.Cursor, data: list):
     """Update a row in the tbl_Tournaments table."""
-    sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ? WHERE TournamentID = ?"
+    sql = f"UPDATE tbl_Tournaments SET TournamentName = ?, TournamentDate = ?, TournamentTime = ?, TournamentDescription = ?, MaxTeams = ?, NumGames = ? WHERE TournamentID = ?"
     cursor.execute(sql, data)
     connection.commit()
 
@@ -142,6 +142,12 @@ def getUserIDfromEmail(cursor: sql.Cursor, email: str):
 
 def deleteTournament(connection, cursor: sql.Cursor, TournamentID: int):
     """Delete a tournament."""
+    sql = f"DELETE FROM tbl_Tournaments WHERE TournamentID = {TournamentID}"
+    cursor.execute(sql)
+    connection.commit()
+
+def delAllTeamsFromTournament(connection, cursor: sql.Cursor, TournamentID: int):
+    """Delete all teams from a tournament."""
     sql = f"DELETE FROM tbl_Teams WHERE TournamentID = {TournamentID}"
     cursor.execute(sql)
     connection.commit()
@@ -155,6 +161,12 @@ def getAllTournamentNames(cursor: sql.Cursor):
 def getTournamentName(cursor: sql.Cursor, TournamentID: int):
     """Get the name of a tournament."""
     sql = f"SELECT TournamentName FROM tbl_Tournaments WHERE TournamentID = {TournamentID}"
+    cursor.execute(sql)
+    return cursor.fetchone()
+
+def getTournamentID(cursor: sql.Cursor, TournamentName: str):
+    """Get the TournamentID of a tournament."""
+    sql = f"SELECT TournamentID FROM tbl_Tournaments WHERE TournamentName = '{TournamentName}'"
     cursor.execute(sql)
     return cursor.fetchone()
 
@@ -264,6 +276,12 @@ def getEmailfromUserID(cursor: sql.Cursor, UserID: int):
     sql = f"SELECT ParticipantEmail FROM tbl_Participants WHERE UserID = {UserID}"
     cursor.execute(sql)
     return cursor.fetchone()
+
+def getAllPlayers(cursor: sql.Cursor, tournamentID: int):
+    """Get all players in a tournament."""
+    sql = f"SELECT TeamName, TeamCaptainName, TeamMember2, TeamMember3 FROM tbl_Teams WHERE TournamentID = {tournamentID}"
+    cursor.execute(sql)
+    return cursor.fetchall()
 
 connection = sql.connect("dbase.db")
 cursor = connection.cursor()

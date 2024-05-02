@@ -14,6 +14,8 @@ def Main():
         menu.delete(0, "end")
 
         menu.add_command(label="Select an Option", command=lambda value=NewOption: EntryVar.set(value))
+        for option in UpdatedOptions:
+            menu.add_command(label=option, command=lambda value=option: EntryVar.set(value))
 
 
     MainWindow = Tk()

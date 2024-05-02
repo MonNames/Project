@@ -6,6 +6,7 @@ root.geometry("30x30")
 root.title("Tournament Management System")
 
 def doFunction():
+    print("func called")
     shouldContinue = messagebox.askyesno("Continue?", "Do you want to continue?")
     if shouldContinue:
         print("Continuing")

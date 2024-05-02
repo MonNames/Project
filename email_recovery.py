@@ -103,7 +103,6 @@ def checkToken(token, RecoveryTokenEntry, controller, page):
         messagebox.showerror("Error", "Token is incorrect.")
         RecoveryTokenEntry.delete(0, "end")
         RecoveryTokenEntry.focus()
-        controller.show_frame(page)
 
 def ResetAdminPassword(NewPass, ConfirmPass, receiver_email, controller, LoginPage):
     if NewPass == ConfirmPass:

@@ -2,9 +2,12 @@ import tkinter as tk
 from tkinter import messagebox, scrolledtext, ttk
 from PIL import ImageTk, Image
 import db, validate as vd, email_recovery as email, functions as fn, sqlite3 as sql
-from idlelib.tooltip import Hovertip
 from tkcalendar import DateEntry
-from time import strftime
+from time import strftime, sleep
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Constants
 MAIN_FONT = ("Arial", 12)
@@ -47,6 +50,9 @@ class SamsTournamentsApp(tk.Tk):
         style = ttk.Style()
         style.theme_use("clam")
         style.configure("Toolbutton", background="#E3E2DF", font=LARGE_FONT_BOLD)
+        style.configure("Treeview", background = "#E3E2DF", foreground = "black", rowheight = 25, fieldbackground = "#E3E2DF")
+
+        style.map("Treeview", background=[('selected', 'green')])
 
         self.frames = {}
 
@@ -55,7 +61,7 @@ class SamsTournamentsApp(tk.Tk):
                   FAQandRulesPage, CreateAnAdminPage, CreateATournamentPage, RegisterToTournamentPage, 
                   UnregisterFromTournamentPage, UpcomingTournamentsDetailsPage, EditTournamentsPage,
                   RecoveryTokenPage, ResetPasswordPage, PreviousTournamentsPage, AdvancedDetailsPage,
-                  PartSettingsPage, AdminSettingsPage):
+                  PartSettingsPage, AdminSettingsPage, ShowTournamentTeamsPage, LeaderboardPage):
             frame = i(container, self)
             self.frames[i] = frame
             frame.grid(row=0, column=0, sticky="nsew")
@@ -72,9 +78,11 @@ class LoginPage(tk.Frame):
 
     def __init__(self, parent, controller):
 
-        def GoToForgotPasswordPage():
-            controller.show_frame(ForgotPasswordPage)
-            controller.geometry("375x200")
+        def ContinueAsGuestButton():
+            """Change to the dashboard page and display the buttons that are available to participants."""
+            global loggedinAs
+            loggedinAs = "EXAMPLEUSER"
+            controller.show_frame(DashboardPage)
 
         def userOrAdmin(Username):
             """Check if the user is an admin or a participant."""
@@ -82,9 +90,7 @@ class LoginPage(tk.Frame):
             allRows = db.getAllRows(cursor, "tbl_Accounts")
             for row in allRows:
                 if Username == row[1]:
-                    print("Yes1")
                     if row[3] == "Admin":
-                        print("Yes2")
                         isAdmin = True
                     else:
                         isAdmin = False
@@ -190,10 +196,10 @@ class LoginPage(tk.Frame):
         SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
         SpaceLabel.pack(pady=20)
         ParticipantViewButton = tk.Button(RightFrame, text="Continue as Guest", bg = "#E3E2DF", width=45, height=4, font = MAIN_FONT,
-                                          command = lambda: controller.show_frame(DashboardPage))
+                                          command = lambda: ContinueAsGuestButton())
         ParticipantViewButton.pack(pady=35)
         ForgotMyPasswordButton = tk.Button(RightFrame, text="Forgot my password", bg = "#9A1750", fg = "white", width=45, height=4, font = MAIN_FONT,
-                                           command=lambda: GoToForgotPasswordPage())
+                                           command=lambda: fn.frameSwitchGeometry(controller, ForgotPasswordPage, "375x200"))
         ForgotMyPasswordButton.pack(pady=35)
         GoToSignUpButton = tk.Button(RightFrame, text="Sign Up", bg = "#E3AFBC", font = MAIN_FONT, width=45, height=4,
                                      command=lambda: controller.show_frame(SignupPage))
@@ -242,6 +248,9 @@ class SignupPage(tk.Frame):
             validPassword = False
             if vd.passwordIsValid(Password.get(), PasswordConfirm.get()) == "Valid":
                 validPassword = True
+            elif vd.passwordIsValid(Password.get(), PasswordConfirm.get()) == "MatchError":
+                messagebox.showerror("Error", "The passwords you entered do not match.")
+                PasswordConfirmEntry.focus()
             else:
                 messagebox.showerror("Error", "The password you entered is invalid.")
                 PasswordEntry.focus()
@@ -428,6 +437,7 @@ class DashboardPage(tk.Frame):
 
         def GoToCreateTournamentPage():
             if isAdmin == True:
+                messagebox.showinfo("Welcome", "Welcome!")
                 controller.show_frame(CreateATournamentPage)
             else:
                 messagebox.showerror("Error", "You do not have the required permissions to access this page.")
@@ -573,12 +583,14 @@ class PartSettingsPage(tk.Frame):
                 messagebox.showerror("Error", "The game name you entered is invalid.")
                 DisplayGameNameEntry.focus()
 
-        def changeUsername(DisplayUsernameEntry, loggedinAs, username):
+        def changeUsername(DisplayUsernameEntry, username):
             """Change the username of the user in the database."""
+            global loggedinAs
             UserID = db.getUserID(cursor, loggedinAs)
             UserID = UserID[0]
             if vd.usernameIsValid(username) == "Valid":
                 db.updateUsername(connection, cursor, [username, UserID])
+                loggedinAs = username
                 messagebox.showinfo("Username Change", "Your username has been changed successfully.")
                 DisplayUsernameEntry.delete(0, "end")
                 DisplayUsernameEntry.config(state="disabled")
@@ -601,6 +613,7 @@ class PartSettingsPage(tk.Frame):
 
         def searchUser():
             """Search for user in the database and find their details"""
+            global loggedinAs
             UserID = db.getUserID(cursor, loggedinAs)
             UserID = UserID[0]
 
@@ -662,7 +675,7 @@ class PartSettingsPage(tk.Frame):
         editGameNameButton.place(relx=0.75, rely=0.095, anchor="center")
 
         editUsernameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
-                                       command=lambda: changeUsername(DisplayUsernameEntry, loggedinAs, DisplayUsernameEntry.get()))
+                                       command=lambda: changeUsername(DisplayUsernameEntry, DisplayUsernameEntry.get()))
         editUsernameButton.place(relx=0.75, rely=0.22, anchor="center")
 
         editEmailButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
@@ -691,30 +704,19 @@ class AdminSettingsPage(tk.Frame):
                 messagebox.showerror("Error", "The email you entered is invalid.")
                 DisplayEmailEntry.focus()
 
-        def changeGameName(DisplayGameNameEntry, loggedinAs, gameName):
-            """Change the game name of the user in the database."""
-            UserID = db.getUserID(cursor, loggedinAs)
-            UserID = UserID[0]
-            if vd.lengthCheck(gameName, 20, 1) == "Valid":
-                db.updateGameName(cursor, [gameName, UserID])
-                messagebox.showinfo("Game Name Change", "Your game name has been changed successfully.")
-                DisplayGameNameEntry.delete(0, "end")
-                DisplayGameNameEntry.config(state="disabled")
-            else:
-                messagebox.showerror("Error", "The game name you entered is invalid.")
-                DisplayGameNameEntry.focus()
-
-        def changeUsername(DisplayUsernameEntry, loggedinAs, username):
+        def changeUsernameAdmin(DisplayUsernameEntry, username):
             """Change the username of the user in the database."""
+            global loggedinAs
             UserID = db.getUserID(cursor, loggedinAs)
             UserID = UserID[0]
             if vd.usernameIsValid(username) == "Valid":
                 db.updateUsername(cursor, [username, UserID])
+                loggedinAs = username
                 messagebox.showinfo("Username Change", "Your username has been changed successfully.")
                 DisplayUsernameEntry.delete(0, "end")
                 DisplayUsernameEntry.config(state="disabled")
             else:
-                messagebox.showerror("Error", "The username you entered is invalid.")
+                messagebox.showerror("Error", "The username you entered is not suitable.")
                 DisplayUsernameEntry.focus()
 
         def changePassword(DisplayPasswordEntry, loggedinAs, password):
@@ -807,7 +809,7 @@ class AdminSettingsPage(tk.Frame):
         editDiscNameButton.place(relx=0.75, rely=0.095, anchor="center")
 
         editUsernameButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
-                                     command=lambda: changeUsername(DisplayUsernameEntry, loggedinAs, DisplayUsernameEntry.get()))
+                                     command=lambda: changeUsernameAdmin(DisplayUsernameEntry, loggedinAs, DisplayUsernameEntry.get()))
         editUsernameButton.place(relx=0.75, rely=0.22, anchor="center")
 
         editEmailButton = tk.Button(WholeFrame, text="Save", bg="#5D011E", width=5, height=1, fg="white",
@@ -1289,7 +1291,7 @@ class CreateATournamentPage(tk.Frame):
                 MaxTeamsVar.set(MaxTeamsList[0])
             
             validName = False
-            if vd.lengthCheck(TournamentName, 20, 1) == False:
+            if vd.lengthCheck(TournamentName, 20, 1) == "Invalid":
                 messagebox.showerror("Error", "Please enter a valid Tournament name.")
                 TournamentNameEntry.focus()
             else:
@@ -1303,7 +1305,7 @@ class CreateATournamentPage(tk.Frame):
 
             # We also want to ensure that there are no tournaments with the same name
             tournamentNameTaken = False
-            if vd.duplicateCheck(TournamentName, "tbl_Tournaments", 2) == "Taken":
+            if vd.duplicateCheck(TournamentName, "tbl_Tournaments", 1) == "Taken":
                 messagebox.showerror("Error", "Tournament name is already taken.")
                 TournamentNameEntry.focus()
             else:
@@ -1335,9 +1337,9 @@ class CreateATournamentPage(tk.Frame):
         MainLabel.pack(pady=20)
 
         editicon = tk.PhotoImage(file="Images and Icons/updatedicon.png")
-        editicon.image = editicon
         EditButton = ttk.Button(LeftFrame, image=editicon, style="Toolbutton", takefocus=False,
                                command=lambda: controller.show_frame(EditTournamentsPage))
+        EditButton.image = editicon
         EditButton.place(relx=0.72, rely=0.04, anchor="center")
 
         TournamentNameLabel = tk.Label(LeftFrame, text="Tournament Name", bg = "#E3E2DF", font=MAIN_FONT)
@@ -1472,9 +1474,11 @@ class EditTournamentsPage(tk.Frame):
                 if row[1] == tournament:
                     tournamentID = row[0]
                     break
+
             confirm = messagebox.askyesno("Delete Tournament", "Are you sure you want to delete tournament: " + tournament + "?")
             if confirm:
                 db.deleteTournament(connection, cursor, tournamentID)
+                db.delAllTeamsFromTournament(connection, cursor, tournamentID)
                 messagebox.showinfo("Tournament", "Tournament deleted successfully!")
                 SelectedTournament.set("Please Select")
 
@@ -1582,7 +1586,7 @@ class UnregisterFromTournamentPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
         
         def FromWaitingList(TournamentName):
-            # First lets the number of teams registered to the tournament with a status of "Waiting"
+            # First lets getthe number of teams registered to the tournament with a status of "Waiting"
             allTeams = db.getAllRows(cursor, "tbl_Teams")
             for row in allTeams:
                 if TournamentName == db.getTournamentName(cursor, row[7])[0]:
@@ -1612,7 +1616,7 @@ class UnregisterFromTournamentPage(tk.Frame):
                 messagebox.showerror("Error", "Please select a tournament.")
                 return
             
-            UserID = db.getUserID(cursor, loggedinAs)
+            UserID = db.getUserID(cursor, loggedinAs) 
             UserID = UserID[0]
             
             allTeams = db.getAllRows(cursor, "tbl_Teams")
@@ -1620,7 +1624,7 @@ class UnregisterFromTournamentPage(tk.Frame):
             try:
                 GameName = GameName[0]
                 for row in allTeams:
-                    if GameName in row[2]:
+                    if GameName in row[2]: 
                         if TournamentName == db.getTournamentName(cursor, row[7])[0]:
                             TeamID = row[0]
                             break
@@ -1653,9 +1657,8 @@ class UnregisterFromTournamentPage(tk.Frame):
             RegisteredToTournamentsUpdated = []
             allTeams = db.getAllRows(cursor, "tbl_Teams")
             for row in allTeams:
-                # Check if the users game name is in the team
-                if GameName in row[2]:
-                    # Now we need to find the tournament name
+                # Check if the users game name is equal to the game name in the row
+                if GameName == row[2]:
                     TournamentName = db.getTournamentName(cursor, row[7])
                     RegisteredToTournamentsUpdated.append(TournamentName[0])
 
@@ -1711,6 +1714,10 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
         tk.Tk.configure(self, bg="#E3E2DF")
             
         def SelectedTournamentDetails(TournamentName):
+            if TournamentName == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+
             # Let's start by finding the tournament ID of the selected tournament
             allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
             for row in allTournaments:
@@ -1723,6 +1730,8 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
                     TournamentDate = row[2]
                     TournamentTime = row[3]
                     TournamentDescription = row[4]
+                    MaxTeams = row[5]
+                    NumGames = row[6]
 
                     # Let's now get rid of all current information on the right side frame
                     for widget in RightFrame.winfo_children():
@@ -1756,6 +1765,18 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
             
             TournamentDescriptionDetailsLabel = tk.Label(RightFrame, text=TournamentDescription, bg = "#5D011E", fg = "white", font=LARGE_FONT) 
             TournamentDescriptionDetailsLabel.pack(pady=10)
+            
+            MaxTeamsLabel = tk.Label(RightFrame, text="Max Teams", bg = "#5D011E", fg = "white", font=LARGE_FONT_BOLD)
+            MaxTeamsLabel.pack(pady=5)
+            MaxTeamsString = str(MaxTeams)
+            MaxTeamsDetailsLabel = tk.Label(RightFrame, text=MaxTeamsString, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            MaxTeamsDetailsLabel.pack(pady=10)
+
+            NumGamesLabel = tk.Label(RightFrame, text="Number of Games", bg = "#5D011E", fg = "white", font=LARGE_FONT_BOLD)
+            NumGamesLabel.pack(pady=5)
+            NumGamesString = str(NumGames)
+            NumGamesDetailsLabel = tk.Label(RightFrame, text=NumGamesString, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            NumGamesDetailsLabel.pack(pady=10)
             
         # Create a whole frame
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
@@ -1801,6 +1822,10 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
                                                command=lambda: SelectedTournamentDetails(SelectedTournament.get()))
         SeeTournamentDetailsButton.pack(pady=20)
 
+        SeeRegisteredTeamsButton = tk.Button(LeftFrame, text="Show Teams", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                             command=lambda: controller.show_frame(ShowTournamentTeamsPage))
+        SeeRegisteredTeamsButton.pack(pady=5)
+
         fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
         TournamentDetailsLabel = tk.Label(RightFrame, text="Tournament Details", bg = "#5D011E", fg = "white", font=VERY_LARGE_FONT)
@@ -1809,12 +1834,147 @@ class UpcomingTournamentsDetailsPage(tk.Frame):
         # Refresh the Tournaments list every 3 seconds
         fn.newCheckPastFuture(self, "future", TournamentsAvailable, SelectedTournament)
 
+class ShowTournamentTeamsPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+        
+        def ShowTeams(TournamentName):
+
+            def clearSearch():
+                tree.selection_remove(tree.selection())
+                searchesFoundLabel.config(text="Searches Found: 0")
+
+            def search(query):
+                selections = []
+                for child in tree.get_children():
+                    for item in tree.item(child)["values"]:
+                        if type(item) == str:
+                            item = item.lower()
+                            if query.lower() in item:
+                                selections.append(child)
+                                break
+                
+                # If there are multiple selections, we need to iterate through them
+                if len(selections) > 1:
+                    searchesFound = len(selections)
+                    searchesFoundLabel.config(text="Searches Found: " + str(searchesFound))
+                    for selection in selections:
+                        tree.selection_add(selection)
+                        
+                elif len(selections) == 1:
+                    tree.selection_set(selections)
+                    searchesFoundLabel.config(text="Searches Found: 1")
+                
+                else:
+                    messagebox.showerror("Error", "No item found with that name.")
+                    tree.selection_remove(tree.selection())
+                    searchesFoundLabel.config(text="Searches Found: 0")
+                
+            if TournamentName == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+            
+            # Lets clear everything from the right frame
+            for widget in RightFrame.winfo_children():
+                widget.destroy()
+
+            SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+            SpaceLabel.pack(pady=10)
+
+            searchLabel = tk.Label(RightFrame, text="Search", fg="white", bg = "#5D011E", font=LARGE_FONT_BOLD)
+            searchLabel.pack(pady=5)
+            searchEntry = tk.Entry(RightFrame, width=40)
+            searchEntry.pack(pady=5)
+
+            searchesFound = 0
+            searchesFoundLabel = tk.Label(RightFrame, text="Searches Found: " + str(searchesFound), fg="white", bg = "#5D011E", font=LARGE_FONT)
+            searchesFoundLabel.pack(pady=5)
+
+            searchBtn = tk.Button(RightFrame, text="Search", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                command=lambda: search(searchEntry.get()))
+            searchBtn.pack(pady=5)
+
+            clearSearchBtn = tk.Button(RightFrame, text="Clear Search", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                        command=lambda: clearSearch())
+            clearSearchBtn.pack(pady=5)
+
+            # Now lets create a treeview to display the teams in the tournament and their players
+            SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+            SpaceLabel.pack(pady=50)
+            tree = ttk.Treeview(RightFrame, show="headings")
+            tree["columns"] = ("Team Name", "Team Captain", "Player 2", "Player 3", "Status")
+            tree.heading("Team Name", text="Team Name")
+            tree.heading("Team Captain", text="Team Captain")
+            tree.heading("Player 2", text="Player 2")
+            tree.heading("Player 3", text="Player 3")
+            tree.heading("Status", text="Status")
+            tree.pack()
+
+            tournamentID = db.getTournamentID(cursor, TournamentName)
+            tournamentID = tournamentID[0]
+
+            allTeams = db.getAllRows(cursor, "tbl_Teams")
+            teamList = []
+            for row in allTeams:
+                if row[7] == tournamentID:
+                    teamList.append(row[1])
+                    teamList.append(row[2])
+                    teamList.append(row[3])
+                    teamList.append(row[4])
+                    teamList.append(row[6])
+            
+            for i in range(0, len(teamList), 5):
+                tree.insert(parent="", index=0, values=(teamList[i], teamList[i+1], teamList[i+2], teamList[i+3], teamList[i+4]))
+            
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        MainLabel = tk.Label(LeftFrame, text="Show Tournament Teams", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel.pack(pady=20)
+
+        CurrentTournaments = []
+        allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+        for row in allTournaments:
+            CurrentTournaments.append(row[1])
+
+        SelectedTournament = tk.StringVar()
+        SelectedTournament.set("Please Select")
+
+        ChooseATournamentLabel = tk.Label(LeftFrame, text="Choose a Tournament", bg = "#E3E2DF", font=LARGE_FONT)
+        ChooseATournamentLabel.pack(pady=5)
+
+        if len(CurrentTournaments) == 0:
+            ChooseATournamentDrop = tk.OptionMenu(LeftFrame, SelectedTournament, "No Tournaments Available")
+            ChooseATournamentDrop.config(width=20, height=1, font = MAIN_FONT)
+            ChooseATournamentDrop.pack(pady=10)
+        else:
+            ChooseATournamentDrop = tk.OptionMenu(LeftFrame, SelectedTournament, *CurrentTournaments)
+            ChooseATournamentDrop.config(width=20, height=1, font = MAIN_FONT)
+            ChooseATournamentDrop.pack(pady=10)
+        
+        ShowTeamsButton = tk.Button(LeftFrame, text="Show Teams", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                    command=lambda: ShowTeams(SelectedTournament.get()))
+        ShowTeamsButton.pack()
+
+        fn.makeBackButton(LeftFrame, UpcomingTournamentsDetailsPage, controller)
+
 class PreviousTournamentsPage(tk.Frame):
     def __init__(self, parent, controller):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
         def DisplayTournamentDetails(TournamentName):
+            if TournamentName == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+
             allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
             for row in allTournaments:
                 if row[1] == TournamentName:
@@ -1825,6 +1985,8 @@ class PreviousTournamentsPage(tk.Frame):
                     TournamentDate = row[2]
                     TournamentTime = row[3]
                     TournamentDescription = row[4]
+                    MaxTeams = row[5]
+                    NumGames = row[6]
 
                     for widget in RightFrame.winfo_children():
                         widget.destroy()
@@ -1855,6 +2017,18 @@ class PreviousTournamentsPage(tk.Frame):
             
             TournamentDescriptionDetailsLabel = tk.Label(RightFrame, text=TournamentDescription, bg = "#5D011E", fg = "white", font=LARGE_FONT) 
             TournamentDescriptionDetailsLabel.pack(pady=10)
+
+            MaxTeamsLabel = tk.Label(RightFrame, text="Max Teams", bg = "#5D011E", fg = "white", font=LARGE_FONT_BOLD)
+            MaxTeamsLabel.pack(pady=5)
+            MaxTeamsString = str(MaxTeams)
+            MaxTeamsDetailsLabel = tk.Label(RightFrame, text=MaxTeamsString, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            MaxTeamsDetailsLabel.pack(pady=10)
+
+            NumGamesLabel = tk.Label(RightFrame, text="Number of Games", bg = "#5D011E", fg = "white", font=LARGE_FONT_BOLD)
+            NumGamesLabel.pack(pady=5)
+            NumGamesString = str(NumGames)
+            NumGamesDetailsLabel = tk.Label(RightFrame, text=NumGamesString, bg = "#5D011E", fg = "white", font=LARGE_FONT)
+            NumGamesDetailsLabel.pack(pady=10)
 
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
@@ -1900,13 +2074,208 @@ class AdvancedDetailsPage(tk.Frame):
         tk.Frame.__init__(self, parent)
         tk.Tk.configure(self, bg="#E3E2DF")
 
+        def ShowTeams(TournamentName):
+
+            def clearSearch():
+                tree.selection_remove(tree.selection())
+                searchesFoundLabel.config(text="Searches Found: 0")
+
+            def search(query):
+                selections = []
+                for child in tree.get_children():
+                    for item in tree.item(child)["values"]:
+                        item = str(item)
+                        item = item.lower()
+                        if query.lower() in item:
+                            selections.append(child)
+                            break
+                        
+                
+                # If there are multiple selections, we need to iterate through them
+                if len(selections) > 1:
+                    searchesFound = len(selections)
+                    searchesFoundLabel.config(text="Searches Found: " + str(searchesFound))
+                    for selection in selections:
+                        tree.selection_add(selection)
+                        
+                elif len(selections) == 1:
+                    tree.selection_set(selections)
+                    searchesFoundLabel.config(text="Searches Found: 1")
+                
+                else:
+                    messagebox.showerror("Error", "No item found with that name.")
+                    tree.selection_remove(tree.selection())
+                    searchesFoundLabel.config(text="Searches Found: 0")
+                
+            if TournamentName == "Please Select":
+                messagebox.showerror("Error", "Please select a tournament.")
+                return
+            
+            # Lets clear everything from the right frame
+            for widget in RightFrame.winfo_children():
+                widget.destroy()
+
+            SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+            SpaceLabel.pack(pady=10)
+
+            searchLabel = tk.Label(RightFrame, text="Search", fg="white", bg = "#5D011E", font=LARGE_FONT_BOLD)
+            searchLabel.pack(pady=5)
+            searchEntry = tk.Entry(RightFrame, width=40)
+            searchEntry.pack(pady=5)
+
+            searchesFound = 0
+            searchesFoundLabel = tk.Label(RightFrame, text="Searches Found: " + str(searchesFound), fg="white", bg = "#5D011E", font=LARGE_FONT)
+            searchesFoundLabel.pack(pady=5)
+
+            searchBtn = tk.Button(RightFrame, text="Search", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                command=lambda: search(searchEntry.get()))
+            searchBtn.pack(pady=5)
+
+            clearSearchBtn = tk.Button(RightFrame, text="Clear Search", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                        command=lambda: clearSearch())
+            clearSearchBtn.pack(pady=5)
+
+            readFile = pd.read_excel("Stats Files/StatsFile.xlsx")
+
+            # Now lets create a treeview to display the teams in the tournament and their players
+            SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+            SpaceLabel.pack(pady=50)
+            tree = ttk.Treeview(RightFrame, show="headings")
+            tree["columns"] = ("PlayerName", "TeamName", "DamageDone", "Placement", "Kills")
+            tree.heading("PlayerName", text="PlayerName")
+            tree.heading("TeamName", text="TeamName")
+            tree.heading("DamageDone", text="DamageDone")
+            tree.heading("Placement", text="Placement")
+            tree.heading("Kills", text="Kills")
+            tree.pack()
+
+            for index, row in readFile.iterrows():
+                tree.insert("", "end", values=(row["PlayerName"], row["TeamName"], row["DamageDone"], row["Placement"], row["Kills"]))
+
+            leaderBoardBtn = tk.Button(RightFrame, text="Leaderboard", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                        command=lambda: controller.show_frame(LeaderboardPage))
+            leaderBoardBtn.pack(pady=15)
+            
         WholeFrame = tk.Frame(self, bg="#E3E2DF")
         WholeFrame.pack(fill="both", expand=True)
 
-        ComingSoonLabel = tk.Label(WholeFrame, text="Coming Soon", bg = "#E3E2DF", font=VERY_LARGE_FONT)
-        ComingSoonLabel.pack(pady=20)
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        MainLabel = tk.Label(LeftFrame, text="Show Tournament Teams", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel.pack(pady=20)
+
+        CurrentTournaments = []
+        allTournaments = db.getAllRows(cursor, "tbl_Tournaments")
+        for row in allTournaments:
+            CurrentTournaments.append(row[1])
+
+        SelectedTournament = tk.StringVar()
+        SelectedTournament.set("Please Select")
+
+        ChooseATournamentLabel = tk.Label(LeftFrame, text="Choose a Tournament", bg = "#E3E2DF", font=LARGE_FONT)
+        ChooseATournamentLabel.pack(pady=5)
+
+        ChooseATournamentDrop = tk.OptionMenu(LeftFrame, SelectedTournament, "Test Tournament")
+        ChooseATournamentDrop.config(width=20, height=1, font = MAIN_FONT)
+        ChooseATournamentDrop.pack(pady=10)
         
-        fn.makeBackButton(WholeFrame, PreviousTournamentsPage, controller)
+        ShowTeamsButton = tk.Button(LeftFrame, text="Show Teams", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                    command=lambda: ShowTeams(SelectedTournament.get()))
+        ShowTeamsButton.pack()
+
+        fn.makeBackButton(LeftFrame, UpcomingTournamentsDetailsPage, controller)
+
+class LeaderboardPage(tk.Frame):
+    def __init__(self, parent, controller):
+        tk.Frame.__init__(self, parent)
+        tk.Tk.configure(self, bg="#E3E2DF")
+
+        def DisplayLeaderboard():
+
+            def createGraph():
+                fig, ax = plt.subplots()
+                for index, row in readFile.iterrows():
+                    teamName = row["TeamName"]
+                    placement = row["Placement"]
+                    kills = findTeamKills(teamName)
+                    placement = int(placement)
+                    kills = int(kills)
+                    score = fn.calculateScoreSolo(placement, kills)
+                    if teamName in teamsInTree:
+                        ax.bar(teamName, score, label=teamName)
+                    
+                ax.set_xlabel("Teams (In Order of Placement)")
+                ax.set_ylabel("Scores")
+                ax.set_title("Team Scores")
+
+                fig.set_size_inches(18.5, 10.5)
+                plt.show()
+
+            def findTeamKills(teamName):
+                teamKills = 0
+                for index, row in readFile.iterrows():
+                    if row["TeamName"] == teamName:
+                        teamKills += row["Kills"]
+                return teamKills
+            
+            # Lets clear everything from the right frame
+            for widget in RightFrame.winfo_children():
+                widget.destroy()
+
+            # Now lets create a treeview to display the teams in the tournament and their players
+            SpaceLabel = tk.Label(RightFrame, text="", bg = "#5D011E", font=MAIN_FONT)
+            SpaceLabel.pack(pady=50)
+            tree = ttk.Treeview(RightFrame, show="headings")
+            tree["columns"] = ("TeamName", "Placement", "Kills", "Score")
+            tree.heading("TeamName", text="TeamName")
+            tree.heading("Placement", text="Placement")
+            tree.heading("Kills", text="Kills")
+            tree.heading("Score", text="Score")
+            tree.pack(pady=40)
+
+            readFile = pd.read_excel("Stats Files/StatsFile.xlsx")
+
+            # We now want to sort the data by placement, the team with the lowest placement will be at the top
+            readFile = readFile.sort_values(by="Placement")
+            
+            teamsInTree = []
+            for index, row in readFile.iterrows():
+                teamName = row["TeamName"]
+                placement = row["Placement"]
+                kills = findTeamKills(teamName)
+                placement = int(placement)
+                kills = int(kills)
+                score = fn.calculateScoreSolo(placement, kills)
+
+                if teamName not in teamsInTree:
+                    tree.insert("", "end", values=(teamName, placement, kills, score))
+                    teamsInTree.append(teamName)
+            
+            graphButton = tk.Button(RightFrame, text="Graph", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                    command=lambda: createGraph())
+            graphButton.pack(pady=15)
+                    
+        WholeFrame = tk.Frame(self, bg="#E3E2DF")
+        WholeFrame.pack(fill="both", expand=True)
+
+        LeftFrame = tk.Frame(WholeFrame, bg="#E3E2DF")
+        LeftFrame.pack(side="left", fill="both", expand=True)
+
+        RightFrame = tk.Frame(WholeFrame, bg="#5D011E")
+        RightFrame.pack(side="right", fill="both", expand=True)
+
+        MainLabel = tk.Label(LeftFrame, text="Leaderboard", bg = "#E3E2DF", font=VERY_LARGE_FONT)
+        MainLabel.pack(pady=20)
+
+        DisplayLeaderboardButton = tk.Button(LeftFrame, text="Display Leaderboard", bg="#5D011E", fg = "white", width=20, height=2, font = MAIN_FONT,
+                                            command=lambda: DisplayLeaderboard())
+        DisplayLeaderboardButton.pack(pady=5)
+
+        fn.makeBackButton(LeftFrame, DashboardPage, controller)
 
 # Create an instance of the SamsTournamentsApp class and start the application
 app = SamsTournamentsApp()

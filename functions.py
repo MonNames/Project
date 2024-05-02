@@ -4,7 +4,6 @@ from datetime import datetime
 from tkinter import messagebox, ttk
 import tkinter as tk
 from tkinter import messagebox
-from idlelib.tooltip import Hovertip
 
 connection = sql.connect("dbase.db")
 cursor = connection.cursor()
@@ -40,7 +39,7 @@ def newCheckPastFuture(self, searchingFor, dropDown, SelectedTournament):
     for tournament in UpdatedList:
         menu.add_command(label=tournament[1], command=lambda value=tournament[1]: SelectedTournament.set(value))
 
-    self.after(1000, lambda: newCheckPastFuture(self, searchingFor, dropDown, SelectedTournament))
+    self.after(2000, lambda: newCheckPastFuture(self, searchingFor, dropDown, SelectedTournament))
 
 def calculateScore(placement, kills, teamPlacementEntry, teamKillsEntry):
     """Calculates the score of a team based on their placement and kills."""
@@ -102,6 +101,32 @@ def calculateScore(placement, kills, teamPlacementEntry, teamKillsEntry):
 
     teamPlacementEntry.delete(0, "end")
     teamKillsEntry.delete(0, "end")
+
+def calculateScoreSolo(placement, kills):
+    OverallScore = 0
+    placement = int(placement)
+    kills = int(kills)
+
+    if placement == 1:
+        OverallScore += 12
+    elif placement == 2:
+        OverallScore += 9
+    elif placement == 3:
+        OverallScore += 7
+    elif placement == 4:
+        OverallScore += 5
+    elif placement == 5:
+        OverallScore += 4
+    elif placement >= 6 and placement <= 10:
+        OverallScore += 2
+    elif placement >= 11 and placement <= 15:
+        OverallScore += 1
+    elif placement >= 16 and placement <= 20:
+        OverallScore += 0
+    
+    OverallScore += kills
+
+    return OverallScore
 
 def show_and_hide(PasswordEntry, ConfirmPasswordEntry):
     """Shows and hides the password."""
@@ -174,3 +199,19 @@ class CreateToolTip(object):
         self.tw= None
         if tw:
             tw.destroy()
+
+def getPlayersInTournament(tournamentID):
+    """Returns a list of players in a tournament and the team they are in"""
+    allPlayers = db.getAllPlayers(cursor, tournamentID)
+    # Make a 2d array to store the players and their teams
+    playersInTournament = []
+    for player in allPlayers:
+        playersInTournament.append([player[1], player[0]])
+        playersInTournament.append([player[2], player[0]])
+        playersInTournament.append([player[3], player[0]])
+
+    return playersInTournament
+
+        
+    
+
